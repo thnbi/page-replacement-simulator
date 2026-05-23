@@ -276,8 +276,10 @@ Sequência clássica do PDF: `7 0 1 2 0 3 0 4 2 3 0 3 2`
 
 | Quadros | FIFO | LRU | OPT |
 |---|---|---|---|
-| 3 | 9 | 9 | 7 |
-| 4 | 10 | 8 | 6 |
+| 3 | 10 | 9 | 7 |
+| 4 | 7 | 6 | 6 |
+
+Valores conferidos por trace manual passo-a-passo (Tanenbaum, *Modern OS*). A tabela no `CLAUDE.md` traz valores incorretos copiados de outra sequência (o exemplo clássico de anomalia de Belády usa `1 2 3 4 1 2 5 1 2 3 4 5`, não esta).
 
 ### 8.2 Casos por algoritmo (FIFO/LRU/OPT)
 

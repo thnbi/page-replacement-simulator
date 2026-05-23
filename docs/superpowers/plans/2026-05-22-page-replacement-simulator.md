@@ -8,12 +8,14 @@
 
 **Tech Stack:** React 19 + TypeScript (strict, `noUncheckedIndexedAccess`), Tailwind v4 + Skeleton v3, Zustand v5, Recharts, motion/react, Vitest + Testing Library, Biome. Runner: Bun.
 
-**Sequência clássica de fixtures (Tanenbaum / Maziero):** `7 0 1 2 0 3 0 4 2 3 0 3 2`
+**Sequência clássica de fixtures (Tanenbaum):** `7 0 1 2 0 3 0 4 2 3 0 3 2`
 
 | Quadros | FIFO | LRU | OPT |
 |---|---|---|---|
-| 3 | 9 | 9 | 7 |
-| 4 | 10 | 8 | 6 |
+| 3 | 10 | 9 | 7 |
+| 4 | 7 | 6 | 6 |
+
+(Valores conferidos por trace manual. O CLAUDE.md tem uma tabela imprecisa que copia números do exemplo clássico de Belády — válido para outra sequência.)
 
 ---
 
@@ -523,7 +525,7 @@ describe('lru', () => {
     expect(lru(SEQ_CLASSICA, 3).faltas).toBe(FALTAS_ESPERADAS.lru[3]);
   });
 
-  it('sequência clássica × 4 quadros → 8 faltas', () => {
+  it('sequência clássica × 4 quadros → 6 faltas', () => {
     expect(lru(SEQ_CLASSICA, 4).faltas).toBe(FALTAS_ESPERADAS.lru[4]);
   });
 
@@ -682,7 +684,7 @@ describe('opt', () => {
 
   it('produz menos ou igual faltas que FIFO/LRU para a sequência clássica', () => {
     expect(opt(SEQ_CLASSICA, 3).faltas).toBeLessThanOrEqual(9);
-    expect(opt(SEQ_CLASSICA, 4).faltas).toBeLessThanOrEqual(8);
+    expect(opt(SEQ_CLASSICA, 4).faltas).toBeLessThanOrEqual(6);
   });
 });
 ```
