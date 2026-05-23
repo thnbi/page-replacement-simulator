@@ -3,13 +3,13 @@ import { FALTAS_ESPERADAS, SEQ_CLASSICA } from '../../test/fixtures';
 import { fifo } from './fifo';
 
 describe('fifo', () => {
-  it('sequência clássica × 3 quadros → 9 faltas', () => {
+  it('sequência clássica × 3 quadros → 10 faltas', () => {
     const r = fifo(SEQ_CLASSICA, 3);
     expect(r.faltas).toBe(FALTAS_ESPERADAS.fifo[3]);
     expect(r.passos).toHaveLength(SEQ_CLASSICA.length);
   });
 
-  it('sequência clássica × 4 quadros → 10 faltas', () => {
+  it('sequência clássica × 4 quadros → 7 faltas', () => {
     expect(fifo(SEQ_CLASSICA, 4).faltas).toBe(FALTAS_ESPERADAS.fifo[4]);
   });
 
