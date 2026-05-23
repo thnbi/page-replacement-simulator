@@ -7,7 +7,7 @@
 
 ## 1. Objetivo
 
-Simulador web didático que executa e visualiza os quatro algoritmos clássicos de substituição de página (FIFO, LRU, OPT, RANDOM) sobre uma sequência de referências, com três modos de operação: manual (passo a passo, FIFO), automático (totais dos 4) e gráfico (comparação faltas × quadros).
+Simulador web didático que executa e visualiza os quatro algoritmos clássicos de substituição de página (FIFO, LRU, OPT, RANDOM) sobre uma sequência de referências, com três modos de operação: manual (passo a passo, com seletor para escolher qualquer um dos 4 algoritmos), automático (totais dos 4) e gráfico (comparação faltas × quadros).
 
 ## 2. Decisões de produto
 
@@ -103,6 +103,7 @@ export type AllResults = {
   fifo: RunResult;
   lru: RunResult;
   opt: RunResult;
+  randomVisual: RunResult;     // 1 execução determinística (seed base) para o modo manual
   randomMedia: number;         // média de 30 execuções, arredondada
   randomDesvio: number;        // desvio padrão (informativo)
 };
@@ -150,9 +151,10 @@ Nunca mutar `seq` ou `quadrosAnteriores`. Cada `Step` recebe cópias novas (`qua
 ### 4.4 `runAll(seq, quadros): AllResults`
 
 1. Chama `fifo`, `lru`, `opt` uma vez cada.
-2. Roda `random` 30× com `mulberry32(RANDOM_SEED_BASE + i)` para `i = 0..29`.
+2. Roda `random` 30× com `mulberry32(RANDOM_SEED_BASE + i)` para `i = 0..29` (para média e desvio).
 3. `randomMedia = round(soma_faltas / 30)`.
 4. `randomDesvio = sqrt(var(faltas))`.
+5. `randomVisual = random(seq, quadros, mulberry32(RANDOM_SEED_BASE))` — a primeira execução também é guardada inteira para o modo manual poder mostrar uma simulação reproduzível e step-by-step quando o aluno escolhe "RANDOM" no seletor.
 
 ## 5. Store (Zustand)
 
@@ -169,7 +171,8 @@ type SimulatorState = {
   // resultados
   resultados: AllResults | null;        // null = ainda não executou
 
-  // modo manual (só FIFO)
+  // modo manual (qualquer algoritmo)
+  algoritmoManual: Algorithm;           // qual algoritmo o passo-a-passo está mostrando
   passoAtual: StepIndex;                // -1 = antes de começar; 0..N-1
   vitimaPiscando: PageNumber | null;    // dispara animação no MemoryView
 
@@ -179,8 +182,8 @@ type SimulatorState = {
   // ações
   setQuadros(n: number): void;
   setSequenciaTexto(s: string): void;
+  setAlgoritmoManual(a: Algorithm): void;  // troca o algoritmo do passo-a-passo
   executar(): void;
-  iniciarManual(): void;
   avancarPasso(): void;
   voltarPasso(): void;
   resetar(): void;
@@ -192,8 +195,9 @@ type SimulatorState = {
 
 - `setSequenciaTexto` faz parse no momento da escrita, atualiza `sequencia` ou `erroParse`.
 - `setQuadros` clampa em `>= MIN_FRAMES`. Em caso de inválido, mantém o último válido e seta `erroParse`.
+- `setAlgoritmoManual` troca qual algoritmo o modo manual está visualizando. Como os 4 algoritmos compartilham o mesmo número de passos (`seq.length`), `passoAtual` é preservado entre trocas.
 - `executar` exige `erroParse === null` e `quadros >= MIN_FRAMES`. Caso contrário no-op.
-- `avancarPasso` clampa em `passos.length - 1` do FIFO. `voltarPasso` clampa em `-1`.
+- `avancarPasso` clampa em `passos.length - 1` do algoritmo atualmente selecionado. `voltarPasso` clampa em `-1`.
 - Selectors granulares no componente (`useSimulatorStore(s => s.passoAtual)`), nunca desestruturação do store inteiro.
 
 ## 6. UI / Componentes
@@ -221,13 +225,15 @@ type SimulatorState = {
 - Botão **Resetar**.
 - Mensagem de erro de parse logo abaixo do textarea (vermelho, cita o caractere ofensor).
 
-### 6.3 ManualMode (aba "Manual FIFO")
+### 6.3 ManualMode (aba "Manual")
 
+- **Seletor de algoritmo** (radio ou segmented control): FIFO / LRU / OPT / RANDOM. Troca dispara `setAlgoritmoManual`; a interface inteira (memória, sequência, badges) reflete o algoritmo selecionado sem perder o `passoAtual`.
 - Header: sequência inteira como chips horizontais; o índice `passoAtual` em destaque.
 - `MemoryView`: array vertical de `quadros` slots, cada slot pintado com a cor da página (de `lib/colors.ts`). Slot vazio → texto "—".
 - `HitMissBadge`: chip verde "HIT" ou vermelho "FALTA" do passo atual.
-- Fila FIFO: chips horizontais com o estado de `filaDepois`.
+- Fila FIFO: chips horizontais com o estado de `filaDepois`. **Visível só quando `algoritmoManual === 'fifo'`** (os outros algoritmos não preenchem esse campo).
 - Botões **← Voltar** e **Avançar →** (disabled nos extremos).
+- Contagem corrente de faltas até o passo atual (`passos.slice(0, passoAtual+1).filter(p => !p.hit).length`) — ajuda o aluno a ver o total acumulado.
 - Animação: se o passo atual tem `vitima` definida, o slot que sofreu a substituição (agora contendo a nova página) pisca (motion/react, 2 ciclos, ~600ms) para chamar atenção à troca.
 - Placeholder se `resultados === null`: "Clique em Executar para começar."
 
@@ -302,9 +308,10 @@ Sequência clássica do PDF: `7 0 1 2 0 3 0 4 2 3 0 3 2`
 
 - `executar()` com input válido preenche `resultados`.
 - `executar()` com `erroParse !== null` é no-op.
-- `avancarPasso()` não passa de `fifo.passos.length - 1`.
+- `avancarPasso()` não passa de `passos.length - 1` do algoritmo manual selecionado.
 - `voltarPasso()` não desce de `-1`.
-- `resetar()` zera tudo de volta aos defaults.
+- `setAlgoritmoManual('lru')` muda o algoritmo sem resetar `passoAtual`.
+- `resetar()` zera tudo de volta aos defaults (algoritmoManual = 'fifo').
 
 ### 8.6 Smoke tests de UI
 
@@ -321,7 +328,7 @@ bun run test
 ## 9. Critérios de aceite
 
 1. Os 4 algoritmos passam contra as fixtures clássicas (3 e 4 quadros).
-2. Modo manual avança/volta passo-a-passo sem crashar e mostra HIT/FALTA correto a cada passo.
+2. Modo manual avança/volta passo-a-passo sem crashar e mostra HIT/FALTA correto a cada passo. Seletor troca entre FIFO/LRU/OPT/RANDOM sem perder `passoAtual`; fila FIFO só aparece quando o algoritmo selecionado é FIFO.
 3. Modo automático mostra os 4 totais; RANDOM mostra média.
 4. Modo gráfico desenha 4 linhas com curva descendente coerente (mais quadros → menos faltas, com possíveis platôs).
 5. Validação de entrada: número inválido bloqueia Executar com mensagem clara.
