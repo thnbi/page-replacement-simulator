@@ -90,22 +90,22 @@ export const EMPTY_SLOT = null;
 export type FrameSlot = PageNumber | null;
 
 export type Step = {
-  pagina: PageNumber;
+  page: PageNumber;
   hit: boolean;
-  quadrosDepois: FrameSlot[];
-  filaDepois?: PageNumber[];   // só FIFO
-  vitima?: PageNumber;         // página removida nessa referência
+  framesAfter: FrameSlot[];
+  queueAfter?: PageNumber[];   // FIFO only
+  victim?: PageNumber;         // page evicted on this reference
 };
 
-export type RunResult = { passos: Step[]; faltas: number };
+export type RunResult = { steps: Step[]; faults: number };
 
 export type AllResults = {
   fifo: RunResult;
   lru: RunResult;
   opt: RunResult;
-  randomVisual: RunResult;     // 1 execução determinística (seed base) para o modo manual
-  randomMedia: number;         // média de 30 execuções, arredondada
-  randomDesvio: number;        // desvio padrão (informativo)
+  randomVisual: RunResult;     // single deterministic run (base seed) for manual mode
+  randomMean: number;          // mean of 30 runs, rounded
+  randomStdev: number;         // standard deviation (informational)
 };
 ```
 
@@ -114,9 +114,10 @@ export type AllResults = {
 ```ts
 export const DEFAULT_FRAMES = 3;
 export const MIN_FRAMES = 1;
-export const DEFAULT_GRAFICO_MAX = 10;
-export const RANDOM_AMOSTRAS = 30;
-export const RANDOM_SEED_BASE = 0xC0FFEE;  // base para seeds reprodutíveis
+export const DEFAULT_CHART_MAX = 10;
+export const MAX_CHART_FRAMES = 20;
+export const RANDOM_SAMPLES = 30;
+export const RANDOM_SEED_BASE = 0xc0ffee;  // base for reproducible seeds
 ```
 
 ## 4. Funções de algoritmo
@@ -124,10 +125,10 @@ export const RANDOM_SEED_BASE = 0xC0FFEE;  // base para seeds reprodutíveis
 Assinaturas obrigatórias (nomes do PDF):
 
 ```ts
-fifo(seq: PageNumber[], quadros: number): RunResult
-lru (seq: PageNumber[], quadros: number): RunResult
-opt (seq: PageNumber[], quadros: number): RunResult
-random(seq: PageNumber[], quadros: number, rng?: () => number): RunResult
+fifo(seq: PageNumber[], frames: number): RunResult
+lru (seq: PageNumber[], frames: number): RunResult
+opt (seq: PageNumber[], frames: number): RunResult
+random(seq: PageNumber[], frames: number, rng?: () => number): RunResult
 ```
 
 ### 4.1 Comportamento
@@ -152,9 +153,9 @@ Nunca mutar `seq` ou `quadrosAnteriores`. Cada `Step` recebe cópias novas (`qua
 
 1. Chama `fifo`, `lru`, `opt` uma vez cada.
 2. Roda `random` 30× com `mulberry32(RANDOM_SEED_BASE + i)` para `i = 0..29` (para média e desvio).
-3. `randomMedia = round(soma_faltas / 30)`.
-4. `randomDesvio = sqrt(var(faltas))`.
-5. `randomVisual = random(seq, quadros, mulberry32(RANDOM_SEED_BASE))` — a primeira execução também é guardada inteira para o modo manual poder mostrar uma simulação reproduzível e step-by-step quando o aluno escolhe "RANDOM" no seletor.
+3. `randomMean = round(sum / 30)`.
+4. `randomStdev = sqrt(variance)`.
+5. `randomVisual = random(seq, frames, mulberry32(RANDOM_SEED_BASE))` — a primeira execução é guardada inteira para o modo manual poder mostrar uma simulação reproduzível step-by-step quando o aluno escolhe "RANDOM" no seletor.
 
 ## 5. Store (Zustand)
 
@@ -162,43 +163,42 @@ Nunca mutar `seq` ou `quadrosAnteriores`. Cada `Step` recebe cópias novas (`qua
 
 ```ts
 type SimulatorState = {
-  // entrada
-  quadros: number;                      // default DEFAULT_FRAMES
-  sequenciaTexto: string;               // raw input do usuário
-  sequencia: PageNumber[];              // parseado (derivado)
-  erroParse: string | null;             // mensagem se inválido
+  // input
+  frames: number;                       // default DEFAULT_FRAMES
+  sequenceText: string;                 // raw user input
+  sequence: PageNumber[];               // parsed (derived)
+  parseError: string | null;            // message if invalid
 
-  // resultados
-  resultados: AllResults | null;        // null = ainda não executou
+  // results
+  results: AllResults | null;           // null = not run yet
 
-  // modo manual (qualquer algoritmo)
-  algoritmoManual: Algorithm;           // qual algoritmo o passo-a-passo está mostrando
-  passoAtual: StepIndex;                // -1 = antes de começar; 0..N-1
-  vitimaPiscando: PageNumber | null;    // dispara animação no MemoryView
+  // manual mode (any algorithm)
+  manualAlgorithm: Algorithm;           // which algorithm the walkthrough is showing
+  stepIndex: StepIndex;                 // -1 = before start; 0..N-1
 
-  // gráfico
-  quadrosMaxGrafico: number;            // default DEFAULT_GRAFICO_MAX
+  // chart
+  maxChartFrames: number;               // default DEFAULT_CHART_MAX
 
-  // ações
-  setQuadros(n: number): void;
-  setSequenciaTexto(s: string): void;
-  setAlgoritmoManual(a: Algorithm): void;  // troca o algoritmo do passo-a-passo
-  executar(): void;
-  avancarPasso(): void;
-  voltarPasso(): void;
-  resetar(): void;
-  setQuadrosMaxGrafico(n: number): void;
+  // actions
+  setFrames(n: number): void;
+  setSequenceText(s: string): void;
+  setManualAlgorithm(a: Algorithm): void;
+  run(): void;
+  stepForward(): void;
+  stepBack(): void;
+  reset(): void;
+  setMaxChartFrames(n: number): void;
 };
 ```
 
 ### 5.2 Regras
 
-- `setSequenciaTexto` faz parse no momento da escrita, atualiza `sequencia` ou `erroParse`.
-- `setQuadros` clampa em `>= MIN_FRAMES`. Em caso de inválido, mantém o último válido e seta `erroParse`.
-- `setAlgoritmoManual` troca qual algoritmo o modo manual está visualizando. Como os 4 algoritmos compartilham o mesmo número de passos (`seq.length`), `passoAtual` é preservado entre trocas.
-- `executar` exige `erroParse === null` e `quadros >= MIN_FRAMES`. Caso contrário no-op.
-- `avancarPasso` clampa em `passos.length - 1` do algoritmo atualmente selecionado. `voltarPasso` clampa em `-1`.
-- Selectors granulares no componente (`useSimulatorStore(s => s.passoAtual)`), nunca desestruturação do store inteiro.
+- `setSequenceText` faz parse no momento da escrita, atualiza `sequence` ou `parseError`.
+- `setFrames` clampa em `>= MIN_FRAMES`. Em caso de inválido, mantém o último válido.
+- `setManualAlgorithm` troca qual algoritmo o modo manual está visualizando. Como os 4 algoritmos compartilham o mesmo número de passos (`seq.length`), `stepIndex` é preservado entre trocas.
+- `run` exige `parseError === null` e `frames >= MIN_FRAMES`. Caso contrário no-op.
+- `stepForward` clampa em `steps.length - 1` do algoritmo atualmente selecionado. `stepBack` clampa em `-1`.
+- Selectors granulares no componente (`useSimulatorStore(s => s.stepIndex)`), nunca desestruturação do store inteiro.
 
 ## 6. UI / Componentes
 
@@ -219,53 +219,54 @@ type SimulatorState = {
 
 ### 6.2 InputPanel
 
-- Input numérico para `quadros` (min=1).
-- Textarea/input para `sequenciaTexto`.
-- Botão **Executar** (desabilitado se `erroParse` ou sequência vazia).
+- Input numérico para `frames` (min=1).
+- Textarea/input para `sequenceText`.
+- Botão **Executar** (desabilitado se `parseError` ou sequência vazia).
 - Botão **Resetar**.
 - Mensagem de erro de parse logo abaixo do textarea (vermelho, cita o caractere ofensor).
 
 ### 6.3 ManualMode (aba "Manual")
 
-- **Seletor de algoritmo** (radio ou segmented control): FIFO / LRU / OPT / RANDOM. Troca dispara `setAlgoritmoManual`; a interface inteira (memória, sequência, badges) reflete o algoritmo selecionado sem perder o `passoAtual`.
-- Header: sequência inteira como chips horizontais; o índice `passoAtual` em destaque.
-- `MemoryView`: array vertical de `quadros` slots, cada slot pintado com a cor da página (de `lib/colors.ts`). Slot vazio → texto "—".
+- **Seletor de algoritmo** (radio ou segmented control): FIFO / LRU / OPT / RANDOM. Troca dispara `setManualAlgorithm`; a interface inteira (memória, sequência, badges) reflete o algoritmo selecionado sem perder o `stepIndex`.
+- Header: sequência inteira como chips horizontais; o índice `stepIndex` em destaque.
+- `MemoryView`: array vertical de `frames` slots, cada slot pintado com a cor da página (de `lib/colors.ts`). Slot vazio → texto "—".
 - `HitMissBadge`: chip verde "HIT" ou vermelho "FALTA" do passo atual.
-- Fila FIFO: chips horizontais com o estado de `filaDepois`. **Visível só quando `algoritmoManual === 'fifo'`** (os outros algoritmos não preenchem esse campo).
+- Fila FIFO: chips horizontais com o estado de `queueAfter`. **Visível só quando `manualAlgorithm === 'fifo'`** (os outros algoritmos não preenchem esse campo).
 - Botões **← Voltar** e **Avançar →** (disabled nos extremos).
-- Contagem corrente de faltas até o passo atual (`passos.slice(0, passoAtual+1).filter(p => !p.hit).length`) — ajuda o aluno a ver o total acumulado.
-- Animação: se o passo atual tem `vitima` definida, o slot que sofreu a substituição (agora contendo a nova página) pisca (motion/react, 2 ciclos, ~600ms) para chamar atenção à troca.
-- Placeholder se `resultados === null`: "Clique em Executar para começar."
+- Contagem corrente de faltas até o passo atual (`steps.slice(0, stepIndex+1).filter(s => !s.hit).length`) — ajuda o aluno a ver o total acumulado.
+- Animação: se o passo atual tem `victim` definido, o slot que sofreu a substituição (agora contendo a nova página) pisca (motion/react, 2 ciclos, ~600ms) para chamar atenção à troca.
+- Placeholder se `results === null`: "Clique em Executar para começar."
 
 ### 6.4 AutoResults (aba "Automático")
 
 Grid de 4 cards (FIFO, LRU, OPT, RANDOM):
 - Total de faltas (grande, cor primária).
-- Mini-tabela: `passos` | `hits` | `faltas` | `%`.
+- Mini-tabela: `steps` | `hits` | `faults` | `%`.
 - Card RANDOM mostra "média de 30 execuções: N (±σ)".
 
 ### 6.5 ComparisonChart (aba "Gráfico")
 
-- Slider/input para `quadrosMaxGrafico` (default 10, range 1..20).
-- `LineChart` Recharts: X = quadros (1..max), Y = faltas, 4 linhas (cores fixas por algoritmo).
-- Memoizado por `(sequencia, quadrosMaxGrafico)` no próprio componente (`useMemo`); chama `runAll(seq, k)` para cada `k` no range.
+- Slider/input para `maxChartFrames` (default 10, range 1..20).
+- `LineChart` Recharts: X = frames (1..max), Y = faults, 4 linhas (cores fixas por algoritmo).
+- Memoizado por `(sequence, maxChartFrames)` no próprio componente (`useMemo`); chama `runAll(seq, k)` para cada `k` no range.
 - Tooltip mostra os 4 valores no mesmo k.
 
 ### 6.6 Cores
 
 `src/lib/colors.ts` exporta:
 ```ts
-export function corDaPagina(p: PageNumber): string;
-export const COR_ALGORITMO: Record<Algorithm, string>;
+export function pageColor(p: PageNumber): string;
+export const ALGORITHM_COLOR: Record<Algorithm, string>;
+export const ALGORITHM_LABEL: Record<Algorithm, string>;
 ```
 
-Mapa estável: página `p` mapeia sempre para a mesma cor entre algoritmos, para facilitar comparação visual. Implementação: paleta fixa de ~12 tokens Skeleton (`bg-primary-500`, `bg-success-500`, ...) indexada por `p % paleta.length`.
+Mapa estável: página `p` mapeia sempre para a mesma cor entre algoritmos, para facilitar comparação visual. Implementação: paleta fixa de ~12 tokens Skeleton indexada por `p % palette.length`.
 
 ## 7. Validação de entrada
 
-- `quadros`: inteiro `>= MIN_FRAMES`. Não-inteiro/negativo → mantém último válido + erro.
-- `sequência`: regex `/^[\s,]*\d+([\s,]+\d+)*[\s,]*$/`. Aceita espaços e vírgulas.
-- Sequência vazia: válida (`erroParse = null`), mas botão Executar fica desabilitado.
+- `frames`: inteiro `>= MIN_FRAMES`. Não-inteiro/negativo → mantém último válido + erro.
+- `sequence`: regex `/^[\s,]*\d+([\s,]+\d+)*[\s,]*$/`. Aceita espaços e vírgulas.
+- Sequência vazia: válida (`parseError = null`), mas botão Executar fica desabilitado.
 - Erro de parse: mensagem citando o caractere e a posição. Exemplo: `"Caractere inválido na posição 7: 'x'. Esperado: dígitos separados por espaço ou vírgula."`
 
 ## 8. Testes (Vitest + Testing Library)
@@ -283,37 +284,37 @@ Valores conferidos por trace manual passo-a-passo (Tanenbaum, *Modern OS*). A ta
 
 ### 8.2 Casos por algoritmo (FIFO/LRU/OPT)
 
-- Sequência clássica × 3 quadros → faltas esperadas + estado final dos quadros conferido.
-- Sequência clássica × 4 quadros → faltas esperadas.
-- Sequência vazia → `{ passos: [], faltas: 0 }`.
-- Sequência menor que `quadros` → todas faltas, sem vítima.
+- Sequência clássica × 3 frames → faltas esperadas + estado final conferido.
+- Sequência clássica × 4 frames → faltas esperadas.
+- Sequência vazia → `{ steps: [], faults: 0 }`.
+- Sequência menor que `frames` → todas faltas, sem vítima.
 - Página repetida (`[5, 5, 5]`) → 1 falta + 2 hits.
-- 1 quadro → cada página nova é falta com vítima = anterior.
+- 1 frame → cada página nova é falta com vítima = anterior.
 
 ### 8.3 Casos específicos
 
-- **FIFO:** `filaDepois.length === ocupação atual da memória`; um hit **não** altera a fila.
-- **LRU:** caso onde difere de FIFO (`[1,2,3,1,4]`, 3 quadros): LRU expulsa 2, FIFO expulsa 1.
+- **FIFO:** `queueAfter.length === ocupação atual da memória`; um hit **não** altera a fila.
+- **LRU:** caso onde difere de FIFO (`[1,2,3,1,4]`, 3 frames): LRU expulsa 2, FIFO expulsa 1.
 - **OPT:** página sem próximo uso (Infinity) é a primeira a sair.
-- **RANDOM:** com `rng = () => 0` (sempre escolhe índice 0) é determinístico — contagem exata. Sem RNG, apenas `faltas >= opt.faltas` para a sequência clássica.
+- **RANDOM:** com `rng = () => 0` (sempre escolhe índice 0) é determinístico — contagem exata. Sem RNG, apenas `faults >= opt.faults` para a sequência clássica.
 
 ### 8.4 Testes do parser e runAll
 
 - `parseSequence("7 0 1 2")` → `[7,0,1,2]`.
 - `parseSequence("7,0,1,2")` → `[7,0,1,2]`.
-- `parseSequence("7,, 0  1")` → `[7,0,1]` (separadores múltiplos toleráveis dentro da regex).
-- `parseSequence("7 x 0")` → erro citando posição e caractere `'x'`.
+- `parseSequence("7,, 0  1")` → `[7,0,1]` (separadores múltiplos toleráveis).
+- `parseSequence("7 x 0")` → `ParseError` citando posição e caractere `'x'`.
 - `parseSequence("")` → `[]`, sem erro.
-- `runAll`: `randomMedia` é finito, `randomMedia >= opt.faltas`, `randomDesvio >= 0`.
+- `runAll`: `randomMean` é finito, `randomMean >= opt.faults`, `randomStdev >= 0`.
 
 ### 8.5 Testes do store
 
-- `executar()` com input válido preenche `resultados`.
-- `executar()` com `erroParse !== null` é no-op.
-- `avancarPasso()` não passa de `passos.length - 1` do algoritmo manual selecionado.
-- `voltarPasso()` não desce de `-1`.
-- `setAlgoritmoManual('lru')` muda o algoritmo sem resetar `passoAtual`.
-- `resetar()` zera tudo de volta aos defaults (algoritmoManual = 'fifo').
+- `run()` com input válido preenche `results`.
+- `run()` com `parseError !== null` é no-op.
+- `stepForward()` não passa de `steps.length - 1` do algoritmo manual selecionado.
+- `stepBack()` não desce de `-1`.
+- `setManualAlgorithm('lru')` muda o algoritmo sem resetar `stepIndex`.
+- `reset()` zera tudo de volta aos defaults (`manualAlgorithm = 'fifo'`).
 
 ### 8.6 Smoke tests de UI
 
@@ -329,10 +330,10 @@ bun run test
 
 ## 9. Critérios de aceite
 
-1. Os 4 algoritmos passam contra as fixtures clássicas (3 e 4 quadros).
-2. Modo manual avança/volta passo-a-passo sem crashar e mostra HIT/FALTA correto a cada passo. Seletor troca entre FIFO/LRU/OPT/RANDOM sem perder `passoAtual`; fila FIFO só aparece quando o algoritmo selecionado é FIFO.
+1. Os 4 algoritmos passam contra as fixtures clássicas (3 e 4 frames).
+2. Modo manual avança/volta passo-a-passo sem crashar e mostra HIT/FALTA correto a cada passo. Seletor troca entre FIFO/LRU/OPT/RANDOM sem perder `stepIndex`; fila FIFO só aparece quando o algoritmo selecionado é FIFO.
 3. Modo automático mostra os 4 totais; RANDOM mostra média.
-4. Modo gráfico desenha 4 linhas com curva descendente coerente (mais quadros → menos faltas, com possíveis platôs).
+4. Modo gráfico desenha 4 linhas com curva descendente coerente (mais frames → menos faltas, com possíveis platôs).
 5. Validação de entrada: número inválido bloqueia Executar com mensagem clara.
 6. `bun run test` verde. `bun run check` verde.
 7. `bun run build` produz dist sem erro de TS.
@@ -346,11 +347,9 @@ bun run test
 - i18n (UI em pt-BR somente).
 - Suportar páginas com identificador não-numérico.
 
-## 11. Entregáveis do miniprojeto (do PDF)
+## 11. Entregáveis do miniprojeto
 
 1. Código funcionando neste repositório.
-2. Vídeo curto demonstrando o modo manual.
-3. Slides explicando cada algoritmo (funcionamento, exemplos, comparação, resultados).
-4. Identificação da equipe e link do repositório Git.
+2. Identificação da equipe e link do repositório Git.
 
-(Itens 2, 3 e 4 são fora do escopo de implementação técnica deste spec.)
+(Vídeo e slides foram removidos do escopo pelo time.)

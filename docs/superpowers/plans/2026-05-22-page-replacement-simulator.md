@@ -89,8 +89,8 @@ export type FrameSlot = PageNumber | null;
 export type Step = {
   pagina: PageNumber;
   hit: boolean;
-  quadrosDepois: FrameSlot[];
-  filaDepois?: PageNumber[];
+  framesAfter: FrameSlot[];
+  queueAfter?: PageNumber[];
   vitima?: PageNumber;
 };
 
@@ -104,15 +104,15 @@ export type AllResults = {
   lru: RunResult;
   opt: RunResult;
   randomVisual: RunResult;     // execução determinística (seed base) p/ modo manual
-  randomMedia: number;
-  randomDesvio: number;
+  randomMean: number;
+  randomStdev: number;
 };
 
 export const DEFAULT_FRAMES = 3;
 export const MIN_FRAMES = 1;
-export const DEFAULT_GRAFICO_MAX = 10;
-export const MAX_GRAFICO = 20;
-export const RANDOM_AMOSTRAS = 30;
+export const DEFAULT_CHART_MAX = 10;
+export const MAX_CHART_FRAMES = 20;
+export const RANDOM_SAMPLES = 30;
 export const RANDOM_SEED_BASE = 0xc0ffee;
 ```
 
@@ -345,9 +345,9 @@ import type { PageNumber } from '../domain/types';
  * Sequência clássica do PDF (Tanenbaum / Maziero).
  * Faltas conferidas com a literatura.
  */
-export const SEQ_CLASSICA: PageNumber[] = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2];
+export const CLASSIC_SEQUENCE: PageNumber[] = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2];
 
-export const FALTAS_ESPERADAS = {
+export const EXPECTED_FAULTS = {
   fifo: { 3: 9, 4: 10 },
   lru: { 3: 9, 4: 8 },
   opt: { 3: 7, 4: 6 },
@@ -374,18 +374,18 @@ git commit -m "test: add canonical reference sequence fixtures"
 ```ts
 // src/domain/algorithms/fifo.test.ts
 import { describe, expect, it } from 'vitest';
-import { FALTAS_ESPERADAS, SEQ_CLASSICA } from '../../test/fixtures';
+import { EXPECTED_FAULTS, CLASSIC_SEQUENCE } from '../../test/fixtures';
 import { fifo } from './fifo';
 
 describe('fifo', () => {
   it('sequência clássica × 3 quadros → 9 faltas', () => {
-    const r = fifo(SEQ_CLASSICA, 3);
-    expect(r.faltas).toBe(FALTAS_ESPERADAS.fifo[3]);
-    expect(r.passos).toHaveLength(SEQ_CLASSICA.length);
+    const r = fifo(CLASSIC_SEQUENCE, 3);
+    expect(r.faltas).toBe(EXPECTED_FAULTS.fifo[3]);
+    expect(r.passos).toHaveLength(CLASSIC_SEQUENCE.length);
   });
 
   it('sequência clássica × 4 quadros → 10 faltas', () => {
-    expect(fifo(SEQ_CLASSICA, 4).faltas).toBe(FALTAS_ESPERADAS.fifo[4]);
+    expect(fifo(CLASSIC_SEQUENCE, 4).faltas).toBe(EXPECTED_FAULTS.fifo[4]);
   });
 
   it('sequência vazia retorna sem passos e zero faltas', () => {
@@ -413,15 +413,15 @@ describe('fifo', () => {
 
   it('um HIT não altera a fila', () => {
     const r = fifo([1, 2, 3, 1], 3);
-    expect(r.passos[2]?.filaDepois).toEqual([1, 2, 3]);
+    expect(r.passos[2]?.queueAfter).toEqual([1, 2, 3]);
     expect(r.passos[3]?.hit).toBe(true);
-    expect(r.passos[3]?.filaDepois).toEqual([1, 2, 3]);
+    expect(r.passos[3]?.queueAfter).toEqual([1, 2, 3]);
   });
 
   it('não muta a sequência de entrada', () => {
-    const seq = [...SEQ_CLASSICA];
+    const seq = [...CLASSIC_SEQUENCE];
     fifo(seq, 3);
-    expect(seq).toEqual(SEQ_CLASSICA);
+    expect(seq).toEqual(CLASSIC_SEQUENCE);
   });
 });
 ```
@@ -454,8 +454,8 @@ export function fifo(seq: PageNumber[], quadros: number): RunResult {
       passos.push({
         pagina,
         hit: true,
-        quadrosDepois: [...memoria],
-        filaDepois: [...fila],
+        framesAfter: [...memoria],
+        queueAfter: [...fila],
       });
       continue;
     }
@@ -480,8 +480,8 @@ export function fifo(seq: PageNumber[], quadros: number): RunResult {
     passos.push({
       pagina,
       hit: false,
-      quadrosDepois: [...memoria],
-      filaDepois: [...fila],
+      framesAfter: [...memoria],
+      queueAfter: [...fila],
       ...(vitima !== undefined ? { vitima } : {}),
     });
   }
@@ -516,17 +516,17 @@ git commit -m "feat: add FIFO page replacement algorithm"
 ```ts
 // src/domain/algorithms/lru.test.ts
 import { describe, expect, it } from 'vitest';
-import { FALTAS_ESPERADAS, SEQ_CLASSICA } from '../../test/fixtures';
+import { EXPECTED_FAULTS, CLASSIC_SEQUENCE } from '../../test/fixtures';
 import { fifo } from './fifo';
 import { lru } from './lru';
 
 describe('lru', () => {
   it('sequência clássica × 3 quadros → 9 faltas', () => {
-    expect(lru(SEQ_CLASSICA, 3).faltas).toBe(FALTAS_ESPERADAS.lru[3]);
+    expect(lru(CLASSIC_SEQUENCE, 3).faltas).toBe(EXPECTED_FAULTS.lru[3]);
   });
 
   it('sequência clássica × 4 quadros → 6 faltas', () => {
-    expect(lru(SEQ_CLASSICA, 4).faltas).toBe(FALTAS_ESPERADAS.lru[4]);
+    expect(lru(CLASSIC_SEQUENCE, 4).faltas).toBe(EXPECTED_FAULTS.lru[4]);
   });
 
   it('sequência vazia retorna sem passos', () => {
@@ -546,8 +546,8 @@ describe('lru', () => {
     const rFifo = fifo(seq, 3);
     const ultimoLru = rLru.passos[rLru.passos.length - 1];
     const ultimoFifo = rFifo.passos[rFifo.passos.length - 1];
-    expect(ultimoLru?.quadrosDepois.sort()).toEqual([1, 3, 4]);
-    expect(ultimoFifo?.quadrosDepois.sort()).toEqual([2, 3, 4]);
+    expect(ultimoLru?.framesAfter.sort()).toEqual([1, 3, 4]);
+    expect(ultimoFifo?.framesAfter.sort()).toEqual([2, 3, 4]);
   });
 
   it('1 quadro: cada página nova substitui a anterior', () => {
@@ -557,9 +557,9 @@ describe('lru', () => {
   });
 
   it('não muta a sequência de entrada', () => {
-    const seq = [...SEQ_CLASSICA];
+    const seq = [...CLASSIC_SEQUENCE];
     lru(seq, 3);
-    expect(seq).toEqual(SEQ_CLASSICA);
+    expect(seq).toEqual(CLASSIC_SEQUENCE);
   });
 });
 ```
@@ -592,7 +592,7 @@ export function lru(seq: PageNumber[], quadros: number): RunResult {
       const idxUso = usoRecente.indexOf(pagina);
       usoRecente.splice(idxUso, 1);
       usoRecente.push(pagina);
-      passos.push({ pagina, hit: true, quadrosDepois: [...memoria] });
+      passos.push({ pagina, hit: true, framesAfter: [...memoria] });
       continue;
     }
 
@@ -616,7 +616,7 @@ export function lru(seq: PageNumber[], quadros: number): RunResult {
     passos.push({
       pagina,
       hit: false,
-      quadrosDepois: [...memoria],
+      framesAfter: [...memoria],
       ...(vitima !== undefined ? { vitima } : {}),
     });
   }
@@ -651,16 +651,16 @@ git commit -m "feat: add LRU page replacement algorithm"
 ```ts
 // src/domain/algorithms/opt.test.ts
 import { describe, expect, it } from 'vitest';
-import { FALTAS_ESPERADAS, SEQ_CLASSICA } from '../../test/fixtures';
+import { EXPECTED_FAULTS, CLASSIC_SEQUENCE } from '../../test/fixtures';
 import { opt } from './opt';
 
 describe('opt', () => {
   it('sequência clássica × 3 quadros → 7 faltas', () => {
-    expect(opt(SEQ_CLASSICA, 3).faltas).toBe(FALTAS_ESPERADAS.opt[3]);
+    expect(opt(CLASSIC_SEQUENCE, 3).faltas).toBe(EXPECTED_FAULTS.opt[3]);
   });
 
   it('sequência clássica × 4 quadros → 6 faltas', () => {
-    expect(opt(SEQ_CLASSICA, 4).faltas).toBe(FALTAS_ESPERADAS.opt[4]);
+    expect(opt(CLASSIC_SEQUENCE, 4).faltas).toBe(EXPECTED_FAULTS.opt[4]);
   });
 
   it('sequência vazia', () => {
@@ -677,14 +677,14 @@ describe('opt', () => {
   });
 
   it('não muta a sequência de entrada', () => {
-    const seq = [...SEQ_CLASSICA];
+    const seq = [...CLASSIC_SEQUENCE];
     opt(seq, 3);
-    expect(seq).toEqual(SEQ_CLASSICA);
+    expect(seq).toEqual(CLASSIC_SEQUENCE);
   });
 
   it('produz menos ou igual faltas que FIFO/LRU para a sequência clássica', () => {
-    expect(opt(SEQ_CLASSICA, 3).faltas).toBeLessThanOrEqual(9);
-    expect(opt(SEQ_CLASSICA, 4).faltas).toBeLessThanOrEqual(6);
+    expect(opt(CLASSIC_SEQUENCE, 3).faltas).toBeLessThanOrEqual(9);
+    expect(opt(CLASSIC_SEQUENCE, 4).faltas).toBeLessThanOrEqual(6);
   });
 });
 ```
@@ -716,7 +716,7 @@ export function opt(seq: PageNumber[], quadros: number): RunResult {
     if (pagina === undefined) continue;
 
     if (memoria.includes(pagina)) {
-      passos.push({ pagina, hit: true, quadrosDepois: [...memoria] });
+      passos.push({ pagina, hit: true, framesAfter: [...memoria] });
       continue;
     }
 
@@ -735,7 +735,7 @@ export function opt(seq: PageNumber[], quadros: number): RunResult {
     passos.push({
       pagina,
       hit: false,
-      quadrosDepois: [...memoria],
+      framesAfter: [...memoria],
       ...(vitima !== undefined ? { vitima } : {}),
     });
   }
@@ -801,7 +801,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../mulberry32';
 import { opt } from './opt';
 import { random } from './random';
-import { SEQ_CLASSICA } from '../../test/fixtures';
+import { CLASSIC_SEQUENCE } from '../../test/fixtures';
 
 describe('random', () => {
   it('sequência vazia', () => {
@@ -824,23 +824,23 @@ describe('random', () => {
   it('é determinístico com a mesma seed', () => {
     const rngA = mulberry32(42);
     const rngB = mulberry32(42);
-    const a = random(SEQ_CLASSICA, 3, rngA);
-    const b = random(SEQ_CLASSICA, 3, rngB);
+    const a = random(CLASSIC_SEQUENCE, 3, rngA);
+    const b = random(CLASSIC_SEQUENCE, 3, rngB);
     expect(a.faltas).toBe(b.faltas);
     expect(a.passos).toEqual(b.passos);
   });
 
   it('faltas >= opt.faltas para a sequência clássica', () => {
     const rng = mulberry32(123);
-    const rRandom = random(SEQ_CLASSICA, 3, rng).faltas;
-    const rOpt = opt(SEQ_CLASSICA, 3).faltas;
+    const rRandom = random(CLASSIC_SEQUENCE, 3, rng).faltas;
+    const rOpt = opt(CLASSIC_SEQUENCE, 3).faltas;
     expect(rRandom).toBeGreaterThanOrEqual(rOpt);
   });
 
   it('não muta a sequência de entrada', () => {
-    const seq = [...SEQ_CLASSICA];
+    const seq = [...CLASSIC_SEQUENCE];
     random(seq, 3, () => 0);
-    expect(seq).toEqual(SEQ_CLASSICA);
+    expect(seq).toEqual(CLASSIC_SEQUENCE);
   });
 });
 ```
@@ -873,7 +873,7 @@ export function random(
 
   for (const pagina of seq) {
     if (memoria.includes(pagina)) {
-      passos.push({ pagina, hit: true, quadrosDepois: [...memoria] });
+      passos.push({ pagina, hit: true, framesAfter: [...memoria] });
       continue;
     }
 
@@ -893,7 +893,7 @@ export function random(
     passos.push({
       pagina,
       hit: false,
-      quadrosDepois: [...memoria],
+      framesAfter: [...memoria],
       ...(vitima !== undefined ? { vitima } : {}),
     });
   }
@@ -928,27 +928,27 @@ git commit -m "feat: add RANDOM page replacement algorithm"
 ```ts
 // src/domain/runAll.test.ts
 import { describe, expect, it } from 'vitest';
-import { FALTAS_ESPERADAS, SEQ_CLASSICA } from '../test/fixtures';
+import { EXPECTED_FAULTS, CLASSIC_SEQUENCE } from '../test/fixtures';
 import { runAll } from './runAll';
 
 describe('runAll', () => {
-  it('retorna os 4 resultados para a sequência clássica × 3 quadros', () => {
-    const r = runAll(SEQ_CLASSICA, 3);
-    expect(r.fifo.faltas).toBe(FALTAS_ESPERADAS.fifo[3]);
-    expect(r.lru.faltas).toBe(FALTAS_ESPERADAS.lru[3]);
-    expect(r.opt.faltas).toBe(FALTAS_ESPERADAS.opt[3]);
-    expect(r.randomMedia).toBeGreaterThanOrEqual(r.opt.faltas);
-    expect(Number.isFinite(r.randomMedia)).toBe(true);
-    expect(r.randomDesvio).toBeGreaterThanOrEqual(0);
-    expect(r.randomVisual.passos).toHaveLength(SEQ_CLASSICA.length);
+  it('retorna os 4 results para a sequência clássica × 3 quadros', () => {
+    const r = runAll(CLASSIC_SEQUENCE, 3);
+    expect(r.fifo.faltas).toBe(EXPECTED_FAULTS.fifo[3]);
+    expect(r.lru.faltas).toBe(EXPECTED_FAULTS.lru[3]);
+    expect(r.opt.faltas).toBe(EXPECTED_FAULTS.opt[3]);
+    expect(r.randomMean).toBeGreaterThanOrEqual(r.opt.faltas);
+    expect(Number.isFinite(r.randomMean)).toBe(true);
+    expect(r.randomStdev).toBeGreaterThanOrEqual(0);
+    expect(r.randomVisual.passos).toHaveLength(CLASSIC_SEQUENCE.length);
     expect(r.randomVisual.faltas).toBeGreaterThanOrEqual(r.opt.faltas);
   });
 
-  it('é determinístico (mesma seed base → mesmo randomMedia)', () => {
-    const a = runAll(SEQ_CLASSICA, 3);
-    const b = runAll(SEQ_CLASSICA, 3);
-    expect(a.randomMedia).toBe(b.randomMedia);
-    expect(a.randomDesvio).toBe(b.randomDesvio);
+  it('é determinístico (mesma seed base → mesmo randomMean)', () => {
+    const a = runAll(CLASSIC_SEQUENCE, 3);
+    const b = runAll(CLASSIC_SEQUENCE, 3);
+    expect(a.randomMean).toBe(b.randomMean);
+    expect(a.randomStdev).toBe(b.randomStdev);
   });
 
   it('sequência vazia retorna zero em tudo', () => {
@@ -956,8 +956,8 @@ describe('runAll', () => {
     expect(r.fifo.faltas).toBe(0);
     expect(r.lru.faltas).toBe(0);
     expect(r.opt.faltas).toBe(0);
-    expect(r.randomMedia).toBe(0);
-    expect(r.randomDesvio).toBe(0);
+    expect(r.randomMean).toBe(0);
+    expect(r.randomStdev).toBe(0);
     expect(r.randomVisual).toEqual({ passos: [], faltas: 0 });
   });
 });
@@ -981,7 +981,7 @@ import { mulberry32 } from './mulberry32';
 import {
   type AllResults,
   type PageNumber,
-  RANDOM_AMOSTRAS,
+  RANDOM_SAMPLES,
   RANDOM_SEED_BASE,
 } from './types';
 
@@ -994,7 +994,7 @@ export function runAll(seq: PageNumber[], quadros: number): AllResults {
   // as outras 29 só interessam pela contagem de faltas (média e desvio).
   const visual = random(seq, quadros, mulberry32(RANDOM_SEED_BASE));
   const amostras: number[] = [visual.faltas];
-  for (let i = 1; i < RANDOM_AMOSTRAS; i++) {
+  for (let i = 1; i < RANDOM_SAMPLES; i++) {
     amostras.push(random(seq, quadros, mulberry32(RANDOM_SEED_BASE + i)).faltas);
   }
 
@@ -1003,8 +1003,8 @@ export function runAll(seq: PageNumber[], quadros: number): AllResults {
     lru: lruResult,
     opt: optResult,
     randomVisual: visual,
-    randomMedia: Math.round(media(amostras)),
-    randomDesvio: desvioPadrao(amostras),
+    randomMean: Math.round(media(amostras)),
+    randomStdev: desvioPadrao(amostras),
   };
 }
 
@@ -1053,7 +1053,7 @@ git commit -m "feat: add runAll aggregating all four algorithms"
 ```ts
 // src/store/simulator.test.ts
 import { beforeEach, describe, expect, it } from 'vitest';
-import { SEQ_CLASSICA } from '../test/fixtures';
+import { CLASSIC_SEQUENCE } from '../test/fixtures';
 import { initialState, useSimulatorStore } from './simulator';
 
 describe('useSimulatorStore', () => {
@@ -1064,102 +1064,102 @@ describe('useSimulatorStore', () => {
   it('estado inicial tem quadros=3 e sequência clássica default', () => {
     const s = useSimulatorStore.getState();
     expect(s.quadros).toBe(3);
-    expect(s.sequencia).toEqual(SEQ_CLASSICA);
-    expect(s.resultados).toBeNull();
-    expect(s.passoAtual).toBe(-1);
-    expect(s.erroParse).toBeNull();
-    expect(s.algoritmoManual).toBe('fifo');
+    expect(s.sequence).toEqual(CLASSIC_SEQUENCE);
+    expect(s.results).toBeNull();
+    expect(s.stepIndex).toBe(-1);
+    expect(s.parseError).toBeNull();
+    expect(s.manualAlgorithm).toBe('fifo');
   });
 
-  it('setAlgoritmoManual troca o algoritmo sem mexer no passoAtual', () => {
+  it('setManualAlgorithm troca o algoritmo sem mexer no stepIndex', () => {
     const s = useSimulatorStore.getState();
     s.executar();
-    s.avancarPasso();
-    s.avancarPasso();
-    const passoAntes = useSimulatorStore.getState().passoAtual;
-    useSimulatorStore.getState().setAlgoritmoManual('lru');
-    expect(useSimulatorStore.getState().algoritmoManual).toBe('lru');
-    expect(useSimulatorStore.getState().passoAtual).toBe(passoAntes);
+    s.stepForward();
+    s.stepForward();
+    const passoAntes = useSimulatorStore.getState().stepIndex;
+    useSimulatorStore.getState().setManualAlgorithm('lru');
+    expect(useSimulatorStore.getState().manualAlgorithm).toBe('lru');
+    expect(useSimulatorStore.getState().stepIndex).toBe(passoAntes);
   });
 
-  it('avancarPasso usa o limite do algoritmo manual selecionado', () => {
+  it('stepForward usa o limite do algoritmo manual selecionado', () => {
     const s = useSimulatorStore.getState();
     s.executar();
-    s.setAlgoritmoManual('opt');
+    s.setManualAlgorithm('opt');
     const totalOpt =
-      useSimulatorStore.getState().resultados?.opt.passos.length ?? 0;
+      useSimulatorStore.getState().results?.opt.passos.length ?? 0;
     for (let i = 0; i < totalOpt + 5; i++) {
-      useSimulatorStore.getState().avancarPasso();
+      useSimulatorStore.getState().stepForward();
     }
-    expect(useSimulatorStore.getState().passoAtual).toBe(totalOpt - 1);
+    expect(useSimulatorStore.getState().stepIndex).toBe(totalOpt - 1);
   });
 
-  it('setSequenciaTexto válido atualiza sequência e zera erroParse', () => {
-    useSimulatorStore.getState().setSequenciaTexto('1 2 3');
-    expect(useSimulatorStore.getState().sequencia).toEqual([1, 2, 3]);
-    expect(useSimulatorStore.getState().erroParse).toBeNull();
+  it('setSequenceText válido atualiza sequência e zera parseError', () => {
+    useSimulatorStore.getState().setSequenceText('1 2 3');
+    expect(useSimulatorStore.getState().sequence).toEqual([1, 2, 3]);
+    expect(useSimulatorStore.getState().parseError).toBeNull();
   });
 
-  it('setSequenciaTexto inválido seta erroParse e mantém sequência anterior', () => {
-    useSimulatorStore.getState().setSequenciaTexto('1 x 3');
-    expect(useSimulatorStore.getState().erroParse).toContain("'x'");
+  it('setSequenceText inválido seta parseError e mantém sequência anterior', () => {
+    useSimulatorStore.getState().setSequenceText('1 x 3');
+    expect(useSimulatorStore.getState().parseError).toContain("'x'");
   });
 
-  it('setQuadros clampa em MIN_FRAMES=1', () => {
-    useSimulatorStore.getState().setQuadros(0);
+  it('setFrames clampa em MIN_FRAMES=1', () => {
+    useSimulatorStore.getState().setFrames(0);
     expect(useSimulatorStore.getState().quadros).toBe(1);
-    useSimulatorStore.getState().setQuadros(-5);
+    useSimulatorStore.getState().setFrames(-5);
     expect(useSimulatorStore.getState().quadros).toBe(1);
   });
 
-  it('executar() com input válido preenche resultados', () => {
+  it('executar() com input válido preenche results', () => {
     useSimulatorStore.getState().executar();
-    const r = useSimulatorStore.getState().resultados;
+    const r = useSimulatorStore.getState().results;
     expect(r).not.toBeNull();
     expect(r?.fifo.faltas).toBe(9);
   });
 
-  it('executar() com erroParse é no-op', () => {
-    useSimulatorStore.getState().setSequenciaTexto('x');
+  it('executar() com parseError é no-op', () => {
+    useSimulatorStore.getState().setSequenceText('x');
     useSimulatorStore.getState().executar();
-    expect(useSimulatorStore.getState().resultados).toBeNull();
+    expect(useSimulatorStore.getState().results).toBeNull();
   });
 
-  it('avancarPasso() exige resultados; sem eles é no-op', () => {
-    useSimulatorStore.getState().avancarPasso();
-    expect(useSimulatorStore.getState().passoAtual).toBe(-1);
+  it('stepForward() exige results; sem eles é no-op', () => {
+    useSimulatorStore.getState().stepForward();
+    expect(useSimulatorStore.getState().stepIndex).toBe(-1);
   });
 
-  it('avancarPasso() não passa de passos.length - 1', () => {
+  it('stepForward() não passa de passos.length - 1', () => {
     const s = useSimulatorStore.getState();
     s.executar();
-    const total = useSimulatorStore.getState().resultados?.fifo.passos.length ?? 0;
+    const total = useSimulatorStore.getState().results?.fifo.passos.length ?? 0;
     for (let i = 0; i < total + 5; i++) {
-      useSimulatorStore.getState().avancarPasso();
+      useSimulatorStore.getState().stepForward();
     }
-    expect(useSimulatorStore.getState().passoAtual).toBe(total - 1);
+    expect(useSimulatorStore.getState().stepIndex).toBe(total - 1);
   });
 
-  it('voltarPasso() não desce de -1', () => {
+  it('stepBack() não desce de -1', () => {
     useSimulatorStore.getState().executar();
     for (let i = 0; i < 20; i++) {
-      useSimulatorStore.getState().voltarPasso();
+      useSimulatorStore.getState().stepBack();
     }
-    expect(useSimulatorStore.getState().passoAtual).toBe(-1);
+    expect(useSimulatorStore.getState().stepIndex).toBe(-1);
   });
 
   it('resetar() volta tudo aos defaults', () => {
     const s = useSimulatorStore.getState();
-    s.setSequenciaTexto('1 2 3');
-    s.setQuadros(7);
+    s.setSequenceText('1 2 3');
+    s.setFrames(7);
     s.executar();
-    s.avancarPasso();
+    s.stepForward();
     s.resetar();
     const after = useSimulatorStore.getState();
     expect(after.quadros).toBe(3);
-    expect(after.sequencia).toEqual(SEQ_CLASSICA);
-    expect(after.resultados).toBeNull();
-    expect(after.passoAtual).toBe(-1);
+    expect(after.sequence).toEqual(CLASSIC_SEQUENCE);
+    expect(after.results).toBeNull();
+    expect(after.stepIndex).toBe(-1);
   });
 });
 ```
@@ -1181,8 +1181,8 @@ import {
   type Algorithm,
   type AllResults,
   DEFAULT_FRAMES,
-  DEFAULT_GRAFICO_MAX,
-  MAX_GRAFICO,
+  DEFAULT_CHART_MAX,
+  MAX_CHART_FRAMES,
   MIN_FRAMES,
   type PageNumber,
   type RunResult,
@@ -1193,44 +1193,44 @@ const SEQUENCIA_DEFAULT = '7 0 1 2 0 3 0 4 2 3 0 3 2';
 
 type SimulatorState = {
   quadros: number;
-  sequenciaTexto: string;
-  sequencia: PageNumber[];
-  erroParse: string | null;
-  resultados: AllResults | null;
-  algoritmoManual: Algorithm;
-  passoAtual: StepIndex;
-  quadrosMaxGrafico: number;
+  sequenceText: string;
+  sequence: PageNumber[];
+  parseError: string | null;
+  results: AllResults | null;
+  manualAlgorithm: Algorithm;
+  stepIndex: StepIndex;
+  maxChartFrames: number;
 
-  setQuadros(n: number): void;
-  setSequenciaTexto(s: string): void;
-  setAlgoritmoManual(a: Algorithm): void;
+  setFrames(n: number): void;
+  setSequenceText(s: string): void;
+  setManualAlgorithm(a: Algorithm): void;
   executar(): void;
-  avancarPasso(): void;
-  voltarPasso(): void;
+  stepForward(): void;
+  stepBack(): void;
   resetar(): void;
-  setQuadrosMaxGrafico(n: number): void;
+  setMaxChartFrames(n: number): void;
 };
 
 export function initialState(): Omit<
   SimulatorState,
-  | 'setQuadros'
-  | 'setSequenciaTexto'
-  | 'setAlgoritmoManual'
+  | 'setFrames'
+  | 'setSequenceText'
+  | 'setManualAlgorithm'
   | 'executar'
-  | 'avancarPasso'
-  | 'voltarPasso'
+  | 'stepForward'
+  | 'stepBack'
   | 'resetar'
-  | 'setQuadrosMaxGrafico'
+  | 'setMaxChartFrames'
 > {
   return {
     quadros: DEFAULT_FRAMES,
-    sequenciaTexto: SEQUENCIA_DEFAULT,
-    sequencia: parseSequence(SEQUENCIA_DEFAULT),
-    erroParse: null,
-    resultados: null,
-    algoritmoManual: 'fifo',
-    passoAtual: -1,
-    quadrosMaxGrafico: DEFAULT_GRAFICO_MAX,
+    sequenceText: SEQUENCIA_DEFAULT,
+    sequence: parseSequence(SEQUENCIA_DEFAULT),
+    parseError: null,
+    results: null,
+    manualAlgorithm: 'fifo',
+    stepIndex: -1,
+    maxChartFrames: DEFAULT_CHART_MAX,
   };
 }
 
@@ -1240,78 +1240,78 @@ export function initialState(): Omit<
  * no passo-a-passo.
  */
 export function selectRunManual(s: SimulatorState): RunResult | null {
-  if (!s.resultados) return null;
-  switch (s.algoritmoManual) {
+  if (!s.results) return null;
+  switch (s.manualAlgorithm) {
     case 'fifo':
-      return s.resultados.fifo;
+      return s.results.fifo;
     case 'lru':
-      return s.resultados.lru;
+      return s.results.lru;
     case 'opt':
-      return s.resultados.opt;
+      return s.results.opt;
     case 'random':
-      return s.resultados.randomVisual;
+      return s.results.randomVisual;
   }
 }
 
 export const useSimulatorStore = create<SimulatorState>((set, get) => ({
   ...initialState(),
 
-  setQuadros: (n) => {
+  setFrames: (n) => {
     const clamped = Math.max(MIN_FRAMES, Math.floor(n));
-    set({ quadros: clamped, resultados: null, passoAtual: -1 });
+    set({ quadros: clamped, results: null, stepIndex: -1 });
   },
 
-  setSequenciaTexto: (texto) => {
+  setSequenceText: (texto) => {
     try {
       const seq = parseSequence(texto);
       set({
-        sequenciaTexto: texto,
-        sequencia: seq,
-        erroParse: null,
-        resultados: null,
-        passoAtual: -1,
+        sequenceText: texto,
+        sequence: seq,
+        parseError: null,
+        results: null,
+        stepIndex: -1,
       });
     } catch (e) {
       if (e instanceof ParseError) {
-        set({ sequenciaTexto: texto, erroParse: e.message });
+        set({ sequenceText: texto, parseError: e.message });
       } else {
         throw e;
       }
     }
   },
 
-  setAlgoritmoManual: (a) => {
-    // não mexe em passoAtual: os 4 algoritmos têm o mesmo nº de passos
-    set({ algoritmoManual: a });
+  setManualAlgorithm: (a) => {
+    // não mexe em stepIndex: os 4 algoritmos têm o mesmo nº de passos
+    set({ manualAlgorithm: a });
   },
 
   executar: () => {
-    const { sequencia, quadros, erroParse } = get();
-    if (erroParse !== null) return;
-    if (sequencia.length === 0) return;
-    const resultados = runAll(sequencia, quadros);
-    set({ resultados, passoAtual: -1 });
+    const { sequence, quadros, parseError } = get();
+    if (parseError !== null) return;
+    if (sequence.length === 0) return;
+    const results = runAll(sequence, quadros);
+    set({ results, stepIndex: -1 });
   },
 
-  avancarPasso: () => {
+  stepForward: () => {
     const s = get();
     const run = selectRunManual(s);
     if (!run) return;
     const limite = run.passos.length - 1;
-    set({ passoAtual: Math.min(limite, s.passoAtual + 1) });
+    set({ stepIndex: Math.min(limite, s.stepIndex + 1) });
   },
 
-  voltarPasso: () => {
-    set((s) => ({ passoAtual: Math.max(-1, s.passoAtual - 1) }));
+  stepBack: () => {
+    set((s) => ({ stepIndex: Math.max(-1, s.stepIndex - 1) }));
   },
 
   resetar: () => {
     set(initialState());
   },
 
-  setQuadrosMaxGrafico: (n) => {
-    const clamped = Math.max(1, Math.min(MAX_GRAFICO, Math.floor(n)));
-    set({ quadrosMaxGrafico: clamped });
+  setMaxChartFrames: (n) => {
+    const clamped = Math.max(1, Math.min(MAX_CHART_FRAMES, Math.floor(n)));
+    set({ maxChartFrames: clamped });
   },
 }));
 ```
@@ -1342,32 +1342,32 @@ git commit -m "feat: add Zustand simulator store with actions"
 ```ts
 // src/lib/colors.test.ts
 import { describe, expect, it } from 'vitest';
-import { corDaPagina, COR_ALGORITMO } from './colors';
+import { pageColor, ALGORITHM_COLOR } from './colors';
 
 describe('colors', () => {
   it('mesma página retorna mesma cor', () => {
-    expect(corDaPagina(7)).toBe(corDaPagina(7));
+    expect(pageColor(7)).toBe(pageColor(7));
   });
 
   it('páginas diferentes podem ter cores diferentes', () => {
     const cores = new Set([
-      corDaPagina(0),
-      corDaPagina(1),
-      corDaPagina(2),
-      corDaPagina(3),
+      pageColor(0),
+      pageColor(1),
+      pageColor(2),
+      pageColor(3),
     ]);
     expect(cores.size).toBeGreaterThan(1);
   });
 
   it('lida com páginas maiores que a paleta (módulo)', () => {
-    expect(corDaPagina(99)).toBeDefined();
+    expect(pageColor(99)).toBeDefined();
   });
 
   it('exporta uma cor por algoritmo', () => {
-    expect(COR_ALGORITMO.fifo).toBeDefined();
-    expect(COR_ALGORITMO.lru).toBeDefined();
-    expect(COR_ALGORITMO.opt).toBeDefined();
-    expect(COR_ALGORITMO.random).toBeDefined();
+    expect(ALGORITHM_COLOR.fifo).toBeDefined();
+    expect(ALGORITHM_COLOR.lru).toBeDefined();
+    expect(ALGORITHM_COLOR.opt).toBeDefined();
+    expect(ALGORITHM_COLOR.random).toBeDefined();
   });
 });
 ```
@@ -1399,19 +1399,19 @@ const PALETA_PAGINA = [
   'bg-yellow-400 text-black',
 ] as const;
 
-export function corDaPagina(p: PageNumber): string {
+export function pageColor(p: PageNumber): string {
   const idx = ((p % PALETA_PAGINA.length) + PALETA_PAGINA.length) % PALETA_PAGINA.length;
   return PALETA_PAGINA[idx] ?? PALETA_PAGINA[0];
 }
 
-export const COR_ALGORITMO: Record<Algorithm, string> = {
+export const ALGORITHM_COLOR: Record<Algorithm, string> = {
   fifo: '#3b82f6',
   lru: '#10b981',
   opt: '#f59e0b',
   random: '#ef4444',
 };
 
-export const ROTULO_ALGORITMO: Record<Algorithm, string> = {
+export const ALGORITHM_LABEL: Record<Algorithm, string> = {
   fifo: 'FIFO',
   lru: 'LRU',
   opt: 'OPT',
@@ -1547,7 +1547,7 @@ Expected: FAIL "Cannot find module './MemoryView'".
 // src/components/MemoryView.tsx
 import { motion } from 'motion/react';
 import type { FrameSlot } from '../domain/types';
-import { corDaPagina } from '../lib/colors';
+import { pageColor } from '../lib/colors';
 
 type Props = {
   quadros: FrameSlot[];
@@ -1563,7 +1563,7 @@ export function MemoryView({ quadros, indiceVitima }: Props) {
           pagina === null ? (
             <span className="text-surface-400">—</span>
           ) : (
-            <span className={`rounded px-3 py-1 font-bold ${corDaPagina(pagina)}`}>
+            <span className={`rounded px-3 py-1 font-bold ${pageColor(pagina)}`}>
               {pagina}
             </span>
           );
@@ -1639,10 +1639,10 @@ describe('InputPanel', () => {
     expect(screen.getByText(/Caractere inválido/)).toBeInTheDocument();
   });
 
-  it('clicar em Executar com input válido preenche resultados no store', () => {
+  it('clicar em Executar com input válido preenche results no store', () => {
     render(<InputPanel />);
     fireEvent.click(screen.getByRole('button', { name: /executar/i }));
-    expect(useSimulatorStore.getState().resultados).not.toBeNull();
+    expect(useSimulatorStore.getState().results).not.toBeNull();
   });
 
   it('Executar fica desabilitado com erro de parse', () => {
@@ -1669,15 +1669,15 @@ import { useSimulatorStore } from '../store/simulator';
 
 export function InputPanel() {
   const quadros = useSimulatorStore((s) => s.quadros);
-  const sequenciaTexto = useSimulatorStore((s) => s.sequenciaTexto);
-  const erroParse = useSimulatorStore((s) => s.erroParse);
-  const sequencia = useSimulatorStore((s) => s.sequencia);
-  const setQuadros = useSimulatorStore((s) => s.setQuadros);
-  const setSequenciaTexto = useSimulatorStore((s) => s.setSequenciaTexto);
+  const sequenceText = useSimulatorStore((s) => s.sequenceText);
+  const parseError = useSimulatorStore((s) => s.parseError);
+  const sequence = useSimulatorStore((s) => s.sequence);
+  const setFrames = useSimulatorStore((s) => s.setFrames);
+  const setSequenceText = useSimulatorStore((s) => s.setSequenceText);
   const executar = useSimulatorStore((s) => s.executar);
   const resetar = useSimulatorStore((s) => s.resetar);
 
-  const podeExecutar = erroParse === null && sequencia.length > 0;
+  const podeExecutar = parseError === null && sequence.length > 0;
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-surface-300 bg-surface-100 p-4">
@@ -1689,7 +1689,7 @@ export function InputPanel() {
             min={1}
             aria-label="Quadros"
             value={quadros}
-            onChange={(e) => setQuadros(Number.parseInt(e.target.value, 10) || 1)}
+            onChange={(e) => setFrames(Number.parseInt(e.target.value, 10) || 1)}
             className="w-20 rounded border border-surface-300 px-2 py-1"
           />
         </label>
@@ -1699,8 +1699,8 @@ export function InputPanel() {
           <input
             type="text"
             aria-label="Sequência"
-            value={sequenciaTexto}
-            onChange={(e) => setSequenciaTexto(e.target.value)}
+            value={sequenceText}
+            onChange={(e) => setSequenceText(e.target.value)}
             placeholder="ex: 7 0 1 2 0 3 0 4"
             className="rounded border border-surface-300 px-2 py-1 font-mono"
           />
@@ -1723,8 +1723,8 @@ export function InputPanel() {
         </button>
       </div>
 
-      {erroParse !== null && (
-        <p className="text-sm text-rose-600">{erroParse}</p>
+      {parseError !== null && (
+        <p className="text-sm text-rose-600">{parseError}</p>
       )}
     </section>
   );
@@ -1789,12 +1789,12 @@ describe('ManualMode', () => {
     render(<ManualMode />);
     const radioLru = screen.getByRole('radio', { name: /LRU/i });
     fireEvent.click(radioLru);
-    expect(useSimulatorStore.getState().algoritmoManual).toBe('lru');
+    expect(useSimulatorStore.getState().manualAlgorithm).toBe('lru');
   });
 
   it('fila FIFO aparece em FIFO e some em outros algoritmos', () => {
     useSimulatorStore.getState().executar();
-    useSimulatorStore.getState().avancarPasso();
+    useSimulatorStore.getState().stepForward();
     render(<ManualMode />);
     expect(screen.getByText(/Fila FIFO/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('radio', { name: /LRU/i }));
@@ -1827,7 +1827,7 @@ import type {
   PageNumber,
   RunResult,
 } from '../domain/types';
-import { corDaPagina, ROTULO_ALGORITMO } from '../lib/colors';
+import { pageColor, ALGORITHM_LABEL } from '../lib/colors';
 import { selectRunManual, useSimulatorStore } from '../store/simulator';
 import { HitMissBadge } from './HitMissBadge';
 import { MemoryView } from './MemoryView';
@@ -1835,14 +1835,14 @@ import { MemoryView } from './MemoryView';
 const ALGORITMOS: Algorithm[] = ['fifo', 'lru', 'opt', 'random'];
 
 export function ManualMode() {
-  const resultados = useSimulatorStore((s) => s.resultados);
-  const passoAtual = useSimulatorStore((s) => s.passoAtual);
+  const results = useSimulatorStore((s) => s.results);
+  const stepIndex = useSimulatorStore((s) => s.stepIndex);
   const quadros = useSimulatorStore((s) => s.quadros);
-  const sequencia = useSimulatorStore((s) => s.sequencia);
-  const algoritmoManual = useSimulatorStore((s) => s.algoritmoManual);
-  const setAlgoritmo = useSimulatorStore((s) => s.setAlgoritmoManual);
-  const avancar = useSimulatorStore((s) => s.avancarPasso);
-  const voltar = useSimulatorStore((s) => s.voltarPasso);
+  const sequence = useSimulatorStore((s) => s.sequence);
+  const manualAlgorithm = useSimulatorStore((s) => s.manualAlgorithm);
+  const setAlgoritmo = useSimulatorStore((s) => s.setManualAlgorithm);
+  const avancar = useSimulatorStore((s) => s.stepForward);
+  const voltar = useSimulatorStore((s) => s.stepBack);
   const run = useSimulatorStore(selectRunManual);
 
   return (
@@ -1860,23 +1860,23 @@ export function ManualMode() {
               type="radio"
               name="algoritmo-manual"
               value={a}
-              checked={algoritmoManual === a}
+              checked={manualAlgorithm === a}
               onChange={() => setAlgoritmo(a)}
             />
-            {ROTULO_ALGORITMO[a]}
+            {ALGORITHM_LABEL[a]}
           </label>
         ))}
       </fieldset>
 
-      {resultados === null || run === null ? (
+      {results === null || run === null ? (
         <p className="text-surface-600">Clique em Executar para começar.</p>
       ) : (
         <ManualBody
           run={run}
-          algoritmoManual={algoritmoManual}
-          passoAtual={passoAtual}
+          manualAlgorithm={manualAlgorithm}
+          stepIndex={stepIndex}
           quadros={quadros}
-          sequencia={sequencia}
+          sequence={sequence}
           avancar={avancar}
           voltar={voltar}
         />
@@ -1887,47 +1887,47 @@ export function ManualMode() {
 
 type BodyProps = {
   run: RunResult;
-  algoritmoManual: Algorithm;
-  passoAtual: number;
+  manualAlgorithm: Algorithm;
+  stepIndex: number;
   quadros: number;
-  sequencia: PageNumber[];
+  sequence: PageNumber[];
   avancar: () => void;
   voltar: () => void;
 };
 
 function ManualBody({
   run,
-  algoritmoManual,
-  passoAtual,
+  manualAlgorithm,
+  stepIndex,
   quadros,
-  sequencia,
+  sequence,
   avancar,
   voltar,
 }: BodyProps) {
   const passos = run.passos;
-  const passo = passoAtual >= 0 ? passos[passoAtual] : null;
+  const passo = stepIndex >= 0 ? passos[stepIndex] : null;
   const quadrosAtuais: FrameSlot[] =
-    passo?.quadrosDepois ?? new Array(quadros).fill(null);
+    passo?.framesAfter ?? new Array(quadros).fill(null);
   const indiceVitima =
     passo?.vitima !== undefined
-      ? passo.quadrosDepois.indexOf(passo.pagina)
+      ? passo.framesAfter.indexOf(passo.pagina)
       : undefined;
   const faltasAteAqui = passos
-    .slice(0, Math.max(0, passoAtual + 1))
+    .slice(0, Math.max(0, stepIndex + 1))
     .filter((p) => !p.hit).length;
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-1">
         <span className="text-sm text-surface-600">Sequência:</span>
-        {sequencia.map((p, i) => {
-          const ativo = i === passoAtual;
+        {sequence.map((p, i) => {
+          const ativo = i === stepIndex;
           return (
             <span
               key={i}
               className={`rounded px-2 py-1 text-sm font-mono ${
                 ativo
-                  ? `${corDaPagina(p)} ring-2 ring-primary-700`
+                  ? `${pageColor(p)} ring-2 ring-primary-700`
                   : 'bg-surface-200'
               }`}
             >
@@ -1941,7 +1941,7 @@ function ManualBody({
         <button
           type="button"
           onClick={voltar}
-          disabled={passoAtual <= -1}
+          disabled={stepIndex <= -1}
           className="rounded border border-surface-400 px-3 py-1 disabled:opacity-50"
         >
           ← Voltar
@@ -1949,13 +1949,13 @@ function ManualBody({
         <button
           type="button"
           onClick={avancar}
-          disabled={passoAtual >= passos.length - 1}
+          disabled={stepIndex >= passos.length - 1}
           className="rounded bg-primary-500 px-3 py-1 text-white disabled:opacity-50"
         >
           Avançar →
         </button>
         <span className="text-sm text-surface-600">
-          passo {Math.max(0, passoAtual + 1)} / {passos.length}
+          passo {Math.max(0, stepIndex + 1)} / {passos.length}
         </span>
         <span className="text-sm text-surface-700">
           · faltas até aqui: {faltasAteAqui} / {run.faltas} (total)
@@ -1977,7 +1977,7 @@ function ManualBody({
               <div>
                 <span className="text-sm text-surface-600">Página: </span>
                 <span
-                  className={`rounded px-2 py-1 font-bold ${corDaPagina(passo.pagina)}`}
+                  className={`rounded px-2 py-1 font-bold ${pageColor(passo.pagina)}`}
                 >
                   {passo.pagina}
                 </span>
@@ -1987,17 +1987,17 @@ function ManualBody({
                 <p className="text-sm text-surface-700">
                   Vítima removida:{' '}
                   <span
-                    className={`rounded px-2 py-0.5 font-bold ${corDaPagina(passo.vitima)}`}
+                    className={`rounded px-2 py-0.5 font-bold ${pageColor(passo.vitima)}`}
                   >
                     {passo.vitima}
                   </span>
                 </p>
               )}
-              {algoritmoManual === 'fifo' && passo.filaDepois !== undefined && (
+              {manualAlgorithm === 'fifo' && passo.queueAfter !== undefined && (
                 <div>
                   <span className="text-sm text-surface-600">Fila FIFO: </span>
                   <span className="font-mono">
-                    [{passo.filaDepois.join(', ')}]
+                    [{passo.queueAfter.join(', ')}]
                   </span>
                 </div>
               )}
@@ -2045,7 +2045,7 @@ describe('AutoResults', () => {
     useSimulatorStore.setState(initialState());
   });
 
-  it('mostra placeholder sem resultados', () => {
+  it('mostra placeholder sem results', () => {
     render(<AutoResults />);
     expect(screen.getByText(/Clique em Executar/i)).toBeInTheDocument();
   });
@@ -2081,12 +2081,12 @@ Expected: FAIL "Cannot find module './AutoResults'".
 ```tsx
 // src/components/AutoResults.tsx
 import type { AllResults, RunResult } from '../domain/types';
-import { COR_ALGORITMO, ROTULO_ALGORITMO } from '../lib/colors';
+import { ALGORITHM_COLOR, ALGORITHM_LABEL } from '../lib/colors';
 import { useSimulatorStore } from '../store/simulator';
 
 export function AutoResults() {
-  const resultados = useSimulatorStore((s) => s.resultados);
-  if (resultados === null) {
+  const results = useSimulatorStore((s) => s.results);
+  if (results === null) {
     return <p className="text-surface-600">Clique em Executar para começar.</p>;
   }
 
@@ -2094,23 +2094,23 @@ export function AutoResults() {
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
       <ResultCard
         algoritmo="fifo"
-        rotulo={ROTULO_ALGORITMO.fifo}
-        cor={COR_ALGORITMO.fifo}
-        run={resultados.fifo}
+        rotulo={ALGORITHM_LABEL.fifo}
+        cor={ALGORITHM_COLOR.fifo}
+        run={results.fifo}
       />
       <ResultCard
         algoritmo="lru"
-        rotulo={ROTULO_ALGORITMO.lru}
-        cor={COR_ALGORITMO.lru}
-        run={resultados.lru}
+        rotulo={ALGORITHM_LABEL.lru}
+        cor={ALGORITHM_COLOR.lru}
+        run={results.lru}
       />
       <ResultCard
         algoritmo="opt"
-        rotulo={ROTULO_ALGORITMO.opt}
-        cor={COR_ALGORITMO.opt}
-        run={resultados.opt}
+        rotulo={ALGORITHM_LABEL.opt}
+        cor={ALGORITHM_COLOR.opt}
+        run={results.opt}
       />
-      <RandomCard resultados={resultados} />
+      <RandomCard results={results} />
     </div>
   );
 }
@@ -2166,9 +2166,9 @@ function ResultCard({ rotulo, cor, run }: ResultCardProps) {
   );
 }
 
-function RandomCard({ resultados }: { resultados: AllResults }) {
-  const cor = COR_ALGORITMO.random;
-  const sigma = resultados.randomDesvio.toFixed(2);
+function RandomCard({ results }: { results: AllResults }) {
+  const cor = ALGORITHM_COLOR.random;
+  const sigma = results.randomStdev.toFixed(2);
   return (
     <div
       data-testid="result-card"
@@ -2179,10 +2179,10 @@ function RandomCard({ resultados }: { resultados: AllResults }) {
           className="inline-block h-3 w-3 rounded-full"
           style={{ backgroundColor: cor }}
         />
-        <h3 className="text-lg font-bold">{ROTULO_ALGORITMO.random}</h3>
+        <h3 className="text-lg font-bold">{ALGORITHM_LABEL.random}</h3>
       </div>
       <div className="text-4xl font-bold" style={{ color: cor }}>
-        {resultados.randomMedia}
+        {results.randomMean}
         <span className="ml-1 text-sm font-normal text-surface-600">
           faltas (média)
         </span>
@@ -2231,7 +2231,7 @@ describe('ComparisonChart', () => {
   });
 
   it('mostra placeholder se sequência vazia', () => {
-    useSimulatorStore.getState().setSequenciaTexto('');
+    useSimulatorStore.getState().setSequenceText('');
     render(<ComparisonChart />);
     expect(screen.getByText(/sequência/i)).toBeInTheDocument();
   });
@@ -2266,8 +2266,8 @@ import {
   YAxis,
 } from 'recharts';
 import { runAll } from '../domain/runAll';
-import { MAX_GRAFICO } from '../domain/types';
-import { COR_ALGORITMO, ROTULO_ALGORITMO } from '../lib/colors';
+import { MAX_CHART_FRAMES } from '../domain/types';
+import { ALGORITHM_COLOR, ALGORITHM_LABEL } from '../lib/colors';
 import { useSimulatorStore } from '../store/simulator';
 
 type Ponto = {
@@ -2279,27 +2279,27 @@ type Ponto = {
 };
 
 export function ComparisonChart() {
-  const sequencia = useSimulatorStore((s) => s.sequencia);
-  const quadrosMaxGrafico = useSimulatorStore((s) => s.quadrosMaxGrafico);
-  const setMax = useSimulatorStore((s) => s.setQuadrosMaxGrafico);
+  const sequence = useSimulatorStore((s) => s.sequence);
+  const maxChartFrames = useSimulatorStore((s) => s.maxChartFrames);
+  const setMax = useSimulatorStore((s) => s.setMaxChartFrames);
 
   const dados: Ponto[] = useMemo(() => {
-    if (sequencia.length === 0) return [];
+    if (sequence.length === 0) return [];
     const pontos: Ponto[] = [];
-    for (let k = 1; k <= quadrosMaxGrafico; k++) {
-      const r = runAll(sequencia, k);
+    for (let k = 1; k <= maxChartFrames; k++) {
+      const r = runAll(sequence, k);
       pontos.push({
         quadros: k,
         FIFO: r.fifo.faltas,
         LRU: r.lru.faltas,
         OPT: r.opt.faltas,
-        RANDOM: r.randomMedia,
+        RANDOM: r.randomMean,
       });
     }
     return pontos;
-  }, [sequencia, quadrosMaxGrafico]);
+  }, [sequence, maxChartFrames]);
 
-  if (sequencia.length === 0) {
+  if (sequence.length === 0) {
     return (
       <p className="text-surface-600">
         Informe uma sequência de páginas válida para gerar o gráfico.
@@ -2315,11 +2315,11 @@ export function ComparisonChart() {
           aria-label="Quadros máximo"
           type="range"
           min={1}
-          max={MAX_GRAFICO}
-          value={quadrosMaxGrafico}
+          max={MAX_CHART_FRAMES}
+          value={maxChartFrames}
           onChange={(e) => setMax(Number.parseInt(e.target.value, 10))}
         />
-        <span className="font-mono text-sm">{quadrosMaxGrafico}</span>
+        <span className="font-mono text-sm">{maxChartFrames}</span>
       </label>
 
       <div className="h-96 w-full">
@@ -2339,34 +2339,34 @@ export function ComparisonChart() {
             <Line
               type="monotone"
               dataKey="FIFO"
-              stroke={COR_ALGORITMO.fifo}
+              stroke={ALGORITHM_COLOR.fifo}
               strokeWidth={2}
               dot
-              name={ROTULO_ALGORITMO.fifo}
+              name={ALGORITHM_LABEL.fifo}
             />
             <Line
               type="monotone"
               dataKey="LRU"
-              stroke={COR_ALGORITMO.lru}
+              stroke={ALGORITHM_COLOR.lru}
               strokeWidth={2}
               dot
-              name={ROTULO_ALGORITMO.lru}
+              name={ALGORITHM_LABEL.lru}
             />
             <Line
               type="monotone"
               dataKey="OPT"
-              stroke={COR_ALGORITMO.opt}
+              stroke={ALGORITHM_COLOR.opt}
               strokeWidth={2}
               dot
-              name={ROTULO_ALGORITMO.opt}
+              name={ALGORITHM_LABEL.opt}
             />
             <Line
               type="monotone"
               dataKey="RANDOM"
-              stroke={COR_ALGORITMO.random}
+              stroke={ALGORITHM_COLOR.random}
               strokeWidth={2}
               dot
-              name={ROTULO_ALGORITMO.random}
+              name={ALGORITHM_LABEL.random}
             />
           </LineChart>
         </ResponsiveContainer>
