@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vite/
+*.log
+.env
+.env.local
+.DS_Store
+coverage/
+
+# Spec PDF externa, mantida apenas localmente
+MiniprojetoSubstitucaoPagina*.pdf
