@@ -2,54 +2,50 @@ import type { FrameSlot, PageNumber, RunResult, Step } from '../types';
 import { EMPTY_SLOT } from '../types';
 
 /**
- * LRU: substitui a página menos recentemente usada.
- * Mantém uma "stack" de uso recente (mais recente no fim).
+ * LRU: evicts the least recently used page.
+ * Maintains a recency list (index 0 = least recent, last = most recent).
  *
- * @example lru([7,0,1,2,0,3,0,4,2,3,0,3,2], 3) // { faltas: 9, passos: [...] }
+ * @example lru([7,0,1,2,0,3,0,4,2,3,0,3,2], 3) // { faults: 9, steps: [...] }
  */
-export function lru(seq: PageNumber[], quadros: number): RunResult {
-  const memoria: FrameSlot[] = new Array(quadros).fill(EMPTY_SLOT);
-  // usoRecente: índice 0 = menos recente, último = mais recente
-  const usoRecente: PageNumber[] = [];
-  const passos: Step[] = [];
-  let faltas = 0;
+export function lru(seq: PageNumber[], frames: number): RunResult {
+  const memory: FrameSlot[] = new Array(frames).fill(EMPTY_SLOT);
+  const recency: PageNumber[] = [];
+  const steps: Step[] = [];
+  let faults = 0;
 
-  for (const pagina of seq) {
-    if (memoria.includes(pagina)) {
-      // Hit: atualiza posição no histórico de uso
-      const idxUso = usoRecente.indexOf(pagina);
-      usoRecente.splice(idxUso, 1);
-      usoRecente.push(pagina);
-      passos.push({ pagina, hit: true, quadrosDepois: [...memoria] });
+  for (const page of seq) {
+    if (memory.includes(page)) {
+      const idx = recency.indexOf(page);
+      recency.splice(idx, 1);
+      recency.push(page);
+      steps.push({ page, hit: true, framesAfter: [...memory] });
       continue;
     }
 
-    faltas++;
-    const slotLivre = memoria.indexOf(EMPTY_SLOT);
-    let vitima: PageNumber | undefined;
+    faults++;
+    const emptySlotIdx = memory.indexOf(EMPTY_SLOT);
+    let victim: PageNumber | undefined;
 
-    if (slotLivre !== -1) {
-      // Há espaço livre: ocupa diretamente
-      memoria[slotLivre] = pagina;
+    if (emptySlotIdx !== -1) {
+      memory[emptySlotIdx] = page;
     } else {
-      // Memória cheia: expulsa a menos recentemente usada (frente da fila)
-      const removida = usoRecente.shift();
-      if (removida === undefined) {
-        throw new Error('Estado inconsistente: memória cheia mas histórico vazio.');
+      const evicted = recency.shift();
+      if (evicted === undefined) {
+        throw new Error('Inconsistent state: memory full but recency list empty.');
       }
-      vitima = removida;
-      const idx = memoria.indexOf(removida);
-      memoria[idx] = pagina;
+      victim = evicted;
+      const slotIdx = memory.indexOf(evicted);
+      memory[slotIdx] = page;
     }
-    usoRecente.push(pagina);
+    recency.push(page);
 
-    passos.push({
-      pagina,
+    steps.push({
+      page,
       hit: false,
-      quadrosDepois: [...memoria],
-      ...(vitima !== undefined ? { vitima } : {}),
+      framesAfter: [...memory],
+      ...(victim !== undefined ? { victim } : {}),
     });
   }
 
-  return { passos, faltas };
+  return { steps, faults };
 }

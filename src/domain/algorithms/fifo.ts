@@ -2,53 +2,53 @@ import type { FrameSlot, PageNumber, RunResult, Step } from '../types';
 import { EMPTY_SLOT } from '../types';
 
 /**
- * FIFO: substitui a página que está há mais tempo em memória.
- * Mantém uma fila explícita; hits não reordenam a fila.
+ * FIFO: evicts the page that has been in memory the longest.
+ * Maintains an explicit queue; hits do not reorder the queue.
  *
- * @example fifo([7,0,1,2,0,3,0,4,2,3,0,3,2], 3) // { faltas: 9, passos: [...] }
+ * @example fifo([7,0,1,2,0,3,0,4,2,3,0,3,2], 3) // { faults: 10, steps: [...] }
  */
-export function fifo(seq: PageNumber[], quadros: number): RunResult {
-  const memoria: FrameSlot[] = new Array(quadros).fill(EMPTY_SLOT);
-  const fila: PageNumber[] = [];
-  const passos: Step[] = [];
-  let faltas = 0;
+export function fifo(seq: PageNumber[], frames: number): RunResult {
+  const memory: FrameSlot[] = new Array(frames).fill(EMPTY_SLOT);
+  const queue: PageNumber[] = [];
+  const steps: Step[] = [];
+  let faults = 0;
 
-  for (const pagina of seq) {
-    if (memoria.includes(pagina)) {
-      passos.push({
-        pagina,
+  for (const page of seq) {
+    if (memory.includes(page)) {
+      steps.push({
+        page,
         hit: true,
-        quadrosDepois: [...memoria],
-        filaDepois: [...fila],
+        framesAfter: [...memory],
+        queueAfter: [...queue],
       });
       continue;
     }
 
-    faltas++;
-    const slotLivre = memoria.indexOf(EMPTY_SLOT);
-    let vitima: PageNumber | undefined;
+    faults++;
+    const emptySlotIdx = memory.indexOf(EMPTY_SLOT);
+    let victim: PageNumber | undefined;
 
-    if (slotLivre !== -1) {
-      memoria[slotLivre] = pagina;
+    if (emptySlotIdx !== -1) {
+      memory[emptySlotIdx] = page;
     } else {
-      const removida = fila.shift();
-      if (removida === undefined) {
-        throw new Error('Estado inconsistente: memória cheia mas fila vazia.');
+      const evicted = queue.shift();
+      if (evicted === undefined) {
+        throw new Error('Inconsistent state: memory full but queue empty.');
       }
-      vitima = removida;
-      const idx = memoria.indexOf(removida);
-      memoria[idx] = pagina;
+      victim = evicted;
+      const slotIdx = memory.indexOf(evicted);
+      memory[slotIdx] = page;
     }
-    fila.push(pagina);
+    queue.push(page);
 
-    passos.push({
-      pagina,
+    steps.push({
+      page,
       hit: false,
-      quadrosDepois: [...memoria],
-      filaDepois: [...fila],
-      ...(vitima !== undefined ? { vitima } : {}),
+      framesAfter: [...memory],
+      queueAfter: [...queue],
+      ...(victim !== undefined ? { victim } : {}),
     });
   }
 
-  return { passos, faltas };
+  return { steps, faults };
 }

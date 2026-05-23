@@ -7,16 +7,16 @@ export const EMPTY_SLOT = null;
 export type FrameSlot = PageNumber | null;
 
 export type Step = {
-  pagina: PageNumber;
+  page: PageNumber;
   hit: boolean;
-  quadrosDepois: FrameSlot[];
-  filaDepois?: PageNumber[];
-  vitima?: PageNumber;
+  framesAfter: FrameSlot[];
+  queueAfter?: PageNumber[];
+  victim?: PageNumber;
 };
 
 export type RunResult = {
-  passos: Step[];
-  faltas: number;
+  steps: Step[];
+  faults: number;
 };
 
 export type AllResults = {
@@ -24,13 +24,13 @@ export type AllResults = {
   lru: RunResult;
   opt: RunResult;
   randomVisual: RunResult;
-  randomMedia: number;
-  randomDesvio: number;
+  randomMean: number;
+  randomStdev: number;
 };
 
 export const DEFAULT_FRAMES = 3;
 export const MIN_FRAMES = 1;
-export const DEFAULT_GRAFICO_MAX = 10;
-export const MAX_GRAFICO = 20;
-export const RANDOM_AMOSTRAS = 30;
+export const DEFAULT_CHART_MAX = 10;
+export const MAX_CHART_FRAMES = 20;
+export const RANDOM_SAMPLES = 30;
 export const RANDOM_SEED_BASE = 0xc0ffee;

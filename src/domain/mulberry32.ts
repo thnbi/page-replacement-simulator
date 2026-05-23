@@ -1,6 +1,6 @@
 /**
- * Mulberry32: PRNG simples e seedável.
- * Útil para reproduzir execuções do algoritmo RANDOM com seeds determinísticas.
+ * Mulberry32: simple, seedable PRNG.
+ * Used to reproduce RANDOM algorithm runs with deterministic seeds.
  */
 export function mulberry32(seed: number): () => number {
   let state = seed >>> 0;

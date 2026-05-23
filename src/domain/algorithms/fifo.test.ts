@@ -1,51 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { FALTAS_ESPERADAS, SEQ_CLASSICA } from '../../test/fixtures';
+import { CLASSIC_SEQUENCE, EXPECTED_FAULTS } from '../../test/fixtures';
 import { fifo } from './fifo';
 
 describe('fifo', () => {
-  it('sequência clássica × 3 quadros → 10 faltas', () => {
-    const r = fifo(SEQ_CLASSICA, 3);
-    expect(r.faltas).toBe(FALTAS_ESPERADAS.fifo[3]);
-    expect(r.passos).toHaveLength(SEQ_CLASSICA.length);
+  it('classic sequence × 3 frames → 10 faults', () => {
+    const r = fifo(CLASSIC_SEQUENCE, 3);
+    expect(r.faults).toBe(EXPECTED_FAULTS.fifo[3]);
+    expect(r.steps).toHaveLength(CLASSIC_SEQUENCE.length);
   });
 
-  it('sequência clássica × 4 quadros → 7 faltas', () => {
-    expect(fifo(SEQ_CLASSICA, 4).faltas).toBe(FALTAS_ESPERADAS.fifo[4]);
+  it('classic sequence × 4 frames → 7 faults', () => {
+    expect(fifo(CLASSIC_SEQUENCE, 4).faults).toBe(EXPECTED_FAULTS.fifo[4]);
   });
 
-  it('sequência vazia retorna sem passos e zero faltas', () => {
-    expect(fifo([], 3)).toEqual({ passos: [], faltas: 0 });
+  it('empty sequence yields no steps and zero faults', () => {
+    expect(fifo([], 3)).toEqual({ steps: [], faults: 0 });
   });
 
-  it('sequência menor que o nº de quadros: todas faltas, sem vítima', () => {
+  it('sequence shorter than frames: all faults, no victims', () => {
     const r = fifo([1, 2, 3], 5);
-    expect(r.faltas).toBe(3);
-    expect(r.passos.every((p) => p.vitima === undefined)).toBe(true);
+    expect(r.faults).toBe(3);
+    expect(r.steps.every((s) => s.victim === undefined)).toBe(true);
   });
 
-  it('mesma página repetida: 1 falta + hits', () => {
+  it('repeating the same page: 1 fault + hits', () => {
     const r = fifo([5, 5, 5], 3);
-    expect(r.faltas).toBe(1);
-    expect(r.passos.map((p) => p.hit)).toEqual([false, true, true]);
+    expect(r.faults).toBe(1);
+    expect(r.steps.map((s) => s.hit)).toEqual([false, true, true]);
   });
 
-  it('1 quadro: toda página nova é falta com vítima = anterior', () => {
+  it('1 frame: every new page is a fault evicting the previous one', () => {
     const r = fifo([1, 2, 3], 1);
-    expect(r.passos[0]?.vitima).toBeUndefined();
-    expect(r.passos[1]?.vitima).toBe(1);
-    expect(r.passos[2]?.vitima).toBe(2);
+    expect(r.steps[0]?.victim).toBeUndefined();
+    expect(r.steps[1]?.victim).toBe(1);
+    expect(r.steps[2]?.victim).toBe(2);
   });
 
-  it('um HIT não altera a fila', () => {
+  it('a HIT does not reorder the queue', () => {
     const r = fifo([1, 2, 3, 1], 3);
-    expect(r.passos[2]?.filaDepois).toEqual([1, 2, 3]);
-    expect(r.passos[3]?.hit).toBe(true);
-    expect(r.passos[3]?.filaDepois).toEqual([1, 2, 3]);
+    expect(r.steps[2]?.queueAfter).toEqual([1, 2, 3]);
+    expect(r.steps[3]?.hit).toBe(true);
+    expect(r.steps[3]?.queueAfter).toEqual([1, 2, 3]);
   });
 
-  it('não muta a sequência de entrada', () => {
-    const seq = [...SEQ_CLASSICA];
+  it('does not mutate the input sequence', () => {
+    const seq = [...CLASSIC_SEQUENCE];
     fifo(seq, 3);
-    expect(seq).toEqual(SEQ_CLASSICA);
+    expect(seq).toEqual(CLASSIC_SEQUENCE);
   });
 });

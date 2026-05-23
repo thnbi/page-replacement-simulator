@@ -1,18 +1,16 @@
 import type { PageNumber } from '../domain/types';
 
 /**
- * Sequência clássica do PDF (Tanenbaum / Maziero).
- * Faltas conferidas com a literatura.
+ * Canonical reference sequence from the PDF (Tanenbaum / Maziero).
+ * Fault counts below were verified by hand-tracing each algorithm
+ * step by step against this exact sequence.
+ *
+ * (Note: CLAUDE.md ships an inaccurate table copied from Belady's
+ * anomaly classic example, which uses a different sequence.)
  */
-export const SEQ_CLASSICA: PageNumber[] = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2];
+export const CLASSIC_SEQUENCE: PageNumber[] = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2];
 
-// Valores conferidos por trace manual passo-a-passo:
-//   FIFO 3 quadros → 10 faltas; 4 quadros → 7 faltas
-//   LRU  3 quadros →  9 faltas; 4 quadros → 6 faltas
-//   OPT  3 quadros →  7 faltas; 4 quadros → 6 faltas
-// (CLAUDE.md trazia uma tabela imprecisa copiada do exemplo clássico de Belady
-//  para outra sequência. Os valores aqui refletem esta sequência específica.)
-export const FALTAS_ESPERADAS = {
+export const EXPECTED_FAULTS = {
   fifo: { 3: 10, 4: 7 },
   lru: { 3: 9, 4: 6 },
   opt: { 3: 7, 4: 6 },

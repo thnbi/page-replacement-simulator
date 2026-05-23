@@ -2,27 +2,27 @@ import { describe, expect, it } from 'vitest';
 import { ParseError, parseSequence } from './parseSequence';
 
 describe('parseSequence', () => {
-  it('parseia números separados por espaço', () => {
+  it('parses numbers separated by spaces', () => {
     expect(parseSequence('7 0 1 2')).toEqual([7, 0, 1, 2]);
   });
 
-  it('parseia números separados por vírgula', () => {
+  it('parses numbers separated by commas', () => {
     expect(parseSequence('7,0,1,2')).toEqual([7, 0, 1, 2]);
   });
 
-  it('tolera múltiplos separadores e espaços extras', () => {
+  it('tolerates extra whitespace and repeated separators', () => {
     expect(parseSequence('  7,, 0  1 ,2 ')).toEqual([7, 0, 1, 2]);
   });
 
-  it('retorna array vazio para string vazia', () => {
+  it('returns an empty array for an empty string', () => {
     expect(parseSequence('')).toEqual([]);
   });
 
-  it('retorna array vazio para string só com espaços', () => {
+  it('returns an empty array for whitespace-only input', () => {
     expect(parseSequence('   ')).toEqual([]);
   });
 
-  it('lança ParseError citando posição e caractere inválido', () => {
+  it('throws ParseError with the offending position and character', () => {
     expect(() => parseSequence('7 x 0')).toThrow(ParseError);
     try {
       parseSequence('7 x 0');
@@ -32,11 +32,11 @@ describe('parseSequence', () => {
     }
   });
 
-  it('parseia números multi-dígito', () => {
+  it('parses multi-digit numbers', () => {
     expect(parseSequence('10 100 999')).toEqual([10, 100, 999]);
   });
 
-  it('rejeita números negativos', () => {
+  it('rejects negative numbers', () => {
     expect(() => parseSequence('1 -2 3')).toThrow(ParseError);
   });
 });
