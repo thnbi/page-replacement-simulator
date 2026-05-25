@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AutoResults } from './components/AutoResults';
 import { ComparisonChart } from './components/ComparisonChart';
 import { InputPanel } from './components/InputPanel';
 import { ManualMode } from './components/ManualMode';
-import { useSimulatorStore } from './store/simulator';
 
 const TABS = [
   {
@@ -30,13 +29,6 @@ type TabId = (typeof TABS)[number]['id'];
 
 export function App() {
   const [tab, setTab] = useState<TabId>('manual');
-  const results = useSimulatorStore((s) => s.results);
-  const run = useSimulatorStore((s) => s.run);
-
-  // First-run UX: execute defaults so the user sees something immediately.
-  useEffect(() => {
-    if (results === null) run();
-  }, [results, run]);
 
   return (
     <main className="min-h-screen bg-slate-100 p-6">

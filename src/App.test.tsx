@@ -20,10 +20,10 @@ describe('App', () => {
     expect(screen.getByRole('tab', { name: /Curva de faltas/i })).toBeInTheDocument();
   });
 
-  it('switching to Resultados shows the four algorithm cards', () => {
+  it('Executar populates results, then Resultados shows the four cards', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Executar/i }));
     fireEvent.click(screen.getByRole('tab', { name: /Resultados/i }));
-    // auto-run on mount populates results immediately
     expect(screen.getByText('FIFO')).toBeInTheDocument();
     expect(screen.getByText('LRU')).toBeInTheDocument();
     expect(screen.getByText('OPT')).toBeInTheDocument();

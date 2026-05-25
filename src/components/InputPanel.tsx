@@ -8,7 +8,15 @@ export function InputPanel() {
   const setFrames = useSimulatorStore((s) => s.setFrames);
   const setSequenceText = useSimulatorStore((s) => s.setSequenceText);
   const run = useSimulatorStore((s) => s.run);
+  const stepForward = useSimulatorStore((s) => s.stepForward);
   const reset = useSimulatorStore((s) => s.reset);
+
+  // Executar = compute results AND advance to step 1 so the user
+  // immediately sees the first memory access.
+  const runAndStart = () => {
+    run();
+    stepForward();
+  };
 
   const canRun = parseError === null && sequence.length > 0;
 
@@ -45,7 +53,7 @@ export function InputPanel() {
 
         <button
           type="button"
-          onClick={run}
+          onClick={runAndStart}
           disabled={!canRun}
           className="rounded-md bg-blue-600 px-5 py-2.5 font-semibold text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
         >
