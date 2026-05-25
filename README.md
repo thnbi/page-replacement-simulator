@@ -96,27 +96,23 @@ that is what makes FIFO different from LRU.
 **Pseudocode.**
 
 ```
-function fifo(seq, frames):
-    memory := array of `frames` empty slots
-    queue  := empty list                # arrival order, oldest at head
-    steps  := empty list
-    faults := 0
-
-    for each page in seq:
-        if page is in memory:
-            steps.push(HIT step snapshot)
-            continue                    # no eviction, queue untouched
-
-        faults := faults + 1
-        if there is an empty slot in memory:
-            place page in that slot
-        else:
-            victim := queue.dequeue()   # page that arrived first
-            replace victim in memory with page
-        queue.enqueue(page)
-        steps.push(FAULT step snapshot, including victim if any)
-
-    return { steps, faults }
+FIFO(seq, n)                                      // n = number of frames
+  M ← array of n slots, all EMPTY                 // physical memory
+  Q ← empty queue                                 // arrival order
+  faults ← 0
+  for i ← 1 to length(seq)
+      p ← seq[i]
+      if p ∈ M
+          continue                                // hit; queue untouched
+      faults ← faults + 1
+      if some slot s in M is EMPTY
+          M[s] ← p
+      else
+          victim ← DEQUEUE(Q)                     // oldest page
+          s ← index of victim in M
+          M[s] ← p
+      ENQUEUE(Q, p)
+  return faults
 ```
 
 **Why hits do not move pages in the queue.** FIFO is meant to be cheap. A
@@ -139,28 +135,25 @@ on past behaviour, but it requires tracking the order of every reference.
 **Pseudocode.**
 
 ```
-function lru(seq, frames):
-    memory  := array of `frames` empty slots
-    recency := empty list                # least recent at head, MRU at tail
-    steps   := empty list
-    faults  := 0
-
-    for each page in seq:
-        if page is in memory:
-            move page to the tail of recency        # mark as most recent
-            steps.push(HIT step snapshot)
-            continue
-
-        faults := faults + 1
-        if there is an empty slot in memory:
-            place page in that slot
-        else:
-            victim := recency.removeHead()           # least recently used
-            replace victim in memory with page
-        recency.append(page)
-        steps.push(FAULT step snapshot, including victim if any)
-
-    return { steps, faults }
+LRU(seq, n)
+  M ← array of n slots, all EMPTY
+  R ← empty list                                  // LRU at head, MRU at tail
+  faults ← 0
+  for i ← 1 to length(seq)
+      p ← seq[i]
+      if p ∈ M
+          remove p from R
+          append p to tail of R                   // mark as most recent
+          continue
+      faults ← faults + 1
+      if some slot s in M is EMPTY
+          M[s] ← p
+      else
+          victim ← REMOVE-HEAD(R)                 // least recently used
+          s ← index of victim in M
+          M[s] ← p
+      append p to tail of R
+  return faults
 ```
 
 **Cost in real hardware.** Exact LRU needs a per-access update of a global
@@ -183,48 +176,38 @@ should produce a curve close to OPT.
 **Pseudocode.**
 
 ```
-function opt(seq, frames):
-    memory := array of `frames` empty slots
-    steps  := empty list
-    faults := 0
+OPT(seq, n)
+  M ← array of n slots, all EMPTY
+  faults ← 0
+  for i ← 1 to length(seq)
+      p ← seq[i]
+      if p ∈ M
+          continue
+      faults ← faults + 1
+      if some slot s in M is EMPTY
+          M[s] ← p
+      else
+          s ← PICK-VICTIM(M, seq, i + 1)
+          M[s] ← p
+  return faults
 
-    for i from 0 to seq.length - 1:
-        page := seq[i]
-        if page is in memory:
-            steps.push(HIT step snapshot)
-            continue
+PICK-VICTIM(M, seq, from)                         // returns a slot index
+  best_slot ← 1
+  best_dist ← -∞
+  for each slot s in M
+      d ← NEXT-USE(seq, from, M[s])
+      if d = +∞
+          return s                                // page never used again
+      if d > best_dist
+          best_dist ← d
+          best_slot ← s
+  return best_slot
 
-        faults := faults + 1
-        if there is an empty slot in memory:
-            place page in that slot
-        else:
-            victimSlot := pickVictim(memory, seq, i + 1)
-            replace memory[victimSlot] with page
-        steps.push(FAULT step snapshot, including victim if any)
-
-    return { steps, faults }
-
-
-function pickVictim(memory, seq, from):
-    # Returns the slot whose page has the most distant next use.
-    bestSlot     := 0
-    bestDistance := -1
-    for each slot s in memory:
-        page := memory[s]
-        next := nextUseIndex(seq, from, page)
-        if next is +infinity:
-            return s                   # never used again, evict immediately
-        if next > bestDistance:
-            bestDistance := next
-            bestSlot     := s
-    return bestSlot
-
-
-function nextUseIndex(seq, from, page):
-    for j from `from` to seq.length - 1:
-        if seq[j] == page:
-            return j
-    return +infinity
+NEXT-USE(seq, from, p)
+  for j ← from to length(seq)
+      if seq[j] = p
+          return j
+  return +∞
 ```
 
 **Reading the simulator's explanation panel.** When the OS view shows
@@ -247,29 +230,24 @@ view uses one specific seeded run so the walkthrough is reproducible.
 **Pseudocode.**
 
 ```
-function random(seq, frames, rng):
-    memory := array of `frames` empty slots
-    steps  := empty list
-    faults := 0
-
-    for each page in seq:
-        if page is in memory:
-            steps.push(HIT step snapshot)
-            continue
-
-        faults := faults + 1
-        if there is an empty slot in memory:
-            place page in that slot
-        else:
-            slot := floor(rng() * frames)            # uniform victim slot
-            replace memory[slot] with page
-        steps.push(FAULT step snapshot, including victim if any)
-
-    return { steps, faults }
+RANDOM(seq, n, rng)                               // rng() ∈ [0, 1)
+  M ← array of n slots, all EMPTY
+  faults ← 0
+  for i ← 1 to length(seq)
+      p ← seq[i]
+      if p ∈ M
+          continue
+      faults ← faults + 1
+      if some slot s in M is EMPTY
+          M[s] ← p
+      else
+          s ← ⌊rng() · n⌋ + 1                     // uniform random slot
+          M[s] ← p
+  return faults
 ```
 
 The injectable `rng` callback defaults to `Math.random` for production use.
-Tests pass `() => 0` for a fully deterministic path (always evicts slot 0)
+Tests pass `() ↦ 0` for a fully deterministic path (always evicts slot 1)
 or `mulberry32(seed)` for a reproducible pseudo-random run.
 
 ### Putting them side by side
