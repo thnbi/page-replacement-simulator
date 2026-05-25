@@ -24,11 +24,12 @@ type Point = {
 
 export function ComparisonChart() {
   const sequence = useSimulatorStore((s) => s.sequence);
+  const results = useSimulatorStore((s) => s.results);
   const maxChartFrames = useSimulatorStore((s) => s.maxChartFrames);
   const setMaxChartFrames = useSimulatorStore((s) => s.setMaxChartFrames);
 
   const points: Point[] = useMemo(() => {
-    if (sequence.length === 0) return [];
+    if (results === null || sequence.length === 0) return [];
     const ps: Point[] = [];
     for (let k = 1; k <= maxChartFrames; k++) {
       const r = runAll(sequence, k);
@@ -41,12 +42,12 @@ export function ComparisonChart() {
       });
     }
     return ps;
-  }, [sequence, maxChartFrames]);
+  }, [results, sequence, maxChartFrames]);
 
-  if (sequence.length === 0) {
+  if (results === null) {
     return (
-      <p className="text-surface-600">
-        Informe uma sequência de páginas válida para gerar o gráfico.
+      <p className="text-slate-600">
+        Clique em <strong>Executar</strong> para gerar a curva de faltas.
       </p>
     );
   }
