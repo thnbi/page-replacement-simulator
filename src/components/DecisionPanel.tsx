@@ -30,7 +30,7 @@ export function DecisionPanel({ algorithm, step, framesBefore, sequence, stepInd
           </span>
         ) : step.victim !== undefined ? (
           <>
-            <span className="rounded-md bg-rose-100 px-3 py-1 font-bold text-rose-800">FALTA</span>
+            <span className="rounded-md bg-rose-100 px-3 py-1 font-bold text-rose-800">FAULT</span>
             <span className="text-slate-600">→ remove</span>
             <Chip page={step.victim} struck />
             <span className="text-slate-600">e coloca</span>
@@ -38,7 +38,7 @@ export function DecisionPanel({ algorithm, step, framesBefore, sequence, stepInd
           </>
         ) : (
           <>
-            <span className="rounded-md bg-rose-100 px-3 py-1 font-bold text-rose-800">FALTA</span>
+            <span className="rounded-md bg-rose-100 px-3 py-1 font-bold text-rose-800">FAULT</span>
             <span className="text-slate-600">→ usa um slot vazio</span>
           </>
         )}

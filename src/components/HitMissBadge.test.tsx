@@ -8,8 +8,8 @@ describe('HitMissBadge', () => {
     expect(screen.getByText(/HIT/i)).toBeInTheDocument();
   });
 
-  it('shows FALTA when hit=false', () => {
+  it('shows FAULT when hit=false', () => {
     render(<HitMissBadge hit={false} />);
-    expect(screen.getByText(/FALTA/i)).toBeInTheDocument();
+    expect(screen.getByText(/FAULT/i)).toBeInTheDocument();
   });
 });

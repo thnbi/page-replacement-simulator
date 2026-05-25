@@ -9,7 +9,7 @@ describe('TraceTable', () => {
     const run = fifo(CLASSIC_SEQUENCE, 3);
     render(<TraceTable title="FIFO" run={run} frames={3} />);
     expect(screen.getByText(/FIFO/)).toBeInTheDocument();
-    expect(screen.getByText(/10 faltas/i)).toBeInTheDocument();
+    expect(screen.getByText(/10 faults/i)).toBeInTheDocument();
   });
 
   it('has one tr per (ref header + frame + hit/falta) = frames + 2 rows', () => {

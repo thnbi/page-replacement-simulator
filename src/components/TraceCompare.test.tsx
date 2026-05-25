@@ -16,9 +16,9 @@ describe('TraceCompare', () => {
   it('renders one table per algorithm after run', () => {
     useSimulatorStore.getState().run();
     render(<TraceCompare />);
-    expect(screen.getByText(/FIFO · 10 faltas/)).toBeInTheDocument();
-    expect(screen.getByText(/LRU · 9 faltas/)).toBeInTheDocument();
-    expect(screen.getByText(/OPT · 7 faltas/)).toBeInTheDocument();
+    expect(screen.getByText(/FIFO · 10 faults/)).toBeInTheDocument();
+    expect(screen.getByText(/LRU · 9 faults/)).toBeInTheDocument();
+    expect(screen.getByText(/OPT · 7 faults/)).toBeInTheDocument();
     expect(screen.getByText(/RANDOM/)).toBeInTheDocument();
   });
 });

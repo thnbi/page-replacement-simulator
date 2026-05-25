@@ -21,7 +21,7 @@ export function TraceTable({ title, run, frames }: Props) {
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-lg font-bold">
-        {title} · {run.faults} faltas
+        {title} · {run.faults} faults
       </h3>
       <div className="overflow-x-auto">
         <table className="border-collapse text-sm">

@@ -39,12 +39,12 @@ function ResultCard({ label, color, run }: ResultCardProps) {
       </div>
       <div className="text-4xl font-bold" style={{ color }}>
         {run.faults}
-        <span className="ml-1 text-sm font-normal text-surface-600">faltas</span>
+        <span className="ml-1 text-sm font-normal text-surface-600">faults</span>
       </div>
       <table className="text-sm">
         <tbody>
           <tr>
-            <td className="pr-3 text-surface-600">Passos</td>
+            <td className="pr-3 text-surface-600">Steps</td>
             <td className="font-mono">{total}</td>
           </tr>
           <tr>
@@ -52,11 +52,11 @@ function ResultCard({ label, color, run }: ResultCardProps) {
             <td className="font-mono">{hits}</td>
           </tr>
           <tr>
-            <td className="pr-3 text-surface-600">Faltas</td>
+            <td className="pr-3 text-surface-600">Faults</td>
             <td className="font-mono">{run.faults}</td>
           </tr>
           <tr>
-            <td className="pr-3 text-surface-600">% faltas</td>
+            <td className="pr-3 text-surface-600">Fault rate</td>
             <td className="font-mono">{pct}%</td>
           </tr>
         </tbody>
@@ -79,7 +79,7 @@ function RandomCard({ results }: { results: AllResults }) {
       </div>
       <div className="text-4xl font-bold" style={{ color }}>
         {results.randomMean}
-        <span className="ml-1 text-sm font-normal text-surface-600">faltas (média)</span>
+        <span className="ml-1 text-sm font-normal text-surface-600">faults (média)</span>
       </div>
       <p className="text-sm text-surface-700">média de 30 execuções, σ ≈ {sigma}</p>
     </div>

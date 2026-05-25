@@ -17,7 +17,7 @@ describe('ManualMode', () => {
     useSimulatorStore.getState().run();
     render(<ManualMode />);
     fireEvent.click(screen.getByRole('button', { name: /Avançar/i }));
-    expect(screen.queryByText(/HIT|FALTA/)).toBeInTheDocument();
+    expect(screen.queryByText(/HIT|FAULT/)).toBeInTheDocument();
   });
 
   it('back button is disabled at stepIndex -1', () => {
@@ -49,7 +49,7 @@ describe('ManualMode', () => {
     render(<ManualMode />);
     // first reference (page 7) is a fault
     fireEvent.click(screen.getByRole('button', { name: /Avançar/i }));
-    expect(screen.getByText(/1\s+faltas até aqui/i)).toBeInTheDocument();
+    expect(screen.getByText(/1\s+faults até aqui/i)).toBeInTheDocument();
   });
 
   it('play button toggles label between Tocar and Pausar', () => {

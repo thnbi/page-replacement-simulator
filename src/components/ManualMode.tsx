@@ -174,7 +174,7 @@ function ProgressStrip({
           Passo {Math.max(0, stepIndex + 1)} de {totalSteps}
         </span>
         <span className="text-slate-600">
-          {`${faultsSoFar} faltas até aqui · ${totalFaults} no total`}
+          {`${faultsSoFar} faults até aqui · ${totalFaults} no total`}
         </span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-slate-200">

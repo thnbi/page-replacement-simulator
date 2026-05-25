@@ -75,7 +75,7 @@ export function ComparisonChart() {
               label={{ value: 'Nº de quadros', position: 'insideBottom', offset: -5 }}
             />
             <YAxis
-              label={{ value: 'Faltas', angle: -90, position: 'insideLeft' }}
+              label={{ value: 'Page faults', angle: -90, position: 'insideLeft' }}
               allowDecimals={false}
             />
             <Tooltip />
