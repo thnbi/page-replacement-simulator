@@ -3,9 +3,11 @@ import { AutoResults } from './components/AutoResults';
 import { ComparisonChart } from './components/ComparisonChart';
 import { InputPanel } from './components/InputPanel';
 import { ManualMode } from './components/ManualMode';
+import { TraceCompare } from './components/TraceCompare';
 
 const TABS = [
   { id: 'manual', label: 'Manual' },
+  { id: 'trace', label: 'Tabela' },
   { id: 'auto', label: 'Automático' },
   { id: 'chart', label: 'Gráfico' },
 ] as const;
@@ -53,6 +55,7 @@ export function App() {
 
         <section className="rounded-lg bg-surface-50 p-4">
           {tab === 'manual' && <ManualMode />}
+          {tab === 'trace' && <TraceCompare />}
           {tab === 'auto' && <AutoResults />}
           {tab === 'chart' && <ComparisonChart />}
         </section>
