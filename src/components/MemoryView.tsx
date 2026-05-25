@@ -16,18 +16,15 @@ export function MemoryView({ frames, victimIndex }: Props) {
           page === null ? (
             <span className="text-surface-400">—</span>
           ) : (
-            <span className={`rounded px-3 py-1 font-bold ${pageColor(page)}`}>
-              {page}
-            </span>
+            <span className={`rounded px-3 py-1 font-bold ${pageColor(page)}`}>{page}</span>
           );
         return (
           <motion.div
+            // biome-ignore lint/suspicious/noArrayIndexKey: physical frame slots are positional and never reorder
             key={idx}
             data-testid="memory-slot"
             data-victim={isVictim ? 'true' : 'false'}
-            animate={
-              isVictim ? { scale: [1, 1.1, 1, 1.1, 1] } : { scale: 1 }
-            }
+            animate={isVictim ? { scale: [1, 1.1, 1, 1.1, 1] } : { scale: 1 }}
             transition={{ duration: 0.6 }}
             className="flex h-12 w-20 items-center justify-center rounded border border-surface-300 bg-surface-50"
           >

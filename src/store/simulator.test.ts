@@ -86,8 +86,7 @@ describe('useSimulatorStore', () => {
     const s = useSimulatorStore.getState();
     s.run();
     s.setManualAlgorithm('opt');
-    const totalOpt =
-      useSimulatorStore.getState().results?.opt.steps.length ?? 0;
+    const totalOpt = useSimulatorStore.getState().results?.opt.steps.length ?? 0;
     for (let i = 0; i < totalOpt + 5; i++) {
       useSimulatorStore.getState().stepForward();
     }

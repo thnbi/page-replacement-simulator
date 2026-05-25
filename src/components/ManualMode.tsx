@@ -1,9 +1,4 @@
-import type {
-  Algorithm,
-  FrameSlot,
-  PageNumber,
-  RunResult,
-} from '../domain/types';
+import type { Algorithm, FrameSlot, PageNumber, RunResult } from '../domain/types';
 import { ALGORITHM_LABEL, pageColor } from '../lib/colors';
 import { selectManualRun, useSimulatorStore } from '../store/simulator';
 import { HitMissBadge } from './HitMissBadge';
@@ -24,13 +19,8 @@ export function ManualMode() {
 
   return (
     <div className="flex flex-col gap-4">
-      <fieldset
-        className="flex flex-wrap items-center gap-2"
-        aria-label="Algoritmo"
-      >
-        <legend className="text-sm font-medium text-surface-700">
-          Algoritmo:
-        </legend>
+      <fieldset className="flex flex-wrap items-center gap-2" aria-label="Algoritmo">
+        <legend className="text-sm font-medium text-surface-700">Algoritmo:</legend>
         {ALGORITHMS.map((a) => (
           <label key={a} className="flex items-center gap-1 text-sm">
             <input
@@ -83,15 +73,9 @@ function ManualBody({
 }: BodyProps) {
   const steps = run.steps;
   const step = stepIndex >= 0 ? steps[stepIndex] : null;
-  const currentFrames: FrameSlot[] =
-    step?.framesAfter ?? new Array(frames).fill(null);
-  const victimIndex =
-    step?.victim !== undefined
-      ? step.framesAfter.indexOf(step.page)
-      : undefined;
-  const faultsSoFar = steps
-    .slice(0, Math.max(0, stepIndex + 1))
-    .filter((s) => !s.hit).length;
+  const currentFrames: FrameSlot[] = step?.framesAfter ?? new Array(frames).fill(null);
+  const victimIndex = step?.victim !== undefined ? step.framesAfter.indexOf(step.page) : undefined;
+  const faultsSoFar = steps.slice(0, Math.max(0, stepIndex + 1)).filter((s) => !s.hit).length;
 
   return (
     <>
@@ -101,11 +85,10 @@ function ManualBody({
           const active = i === stepIndex;
           return (
             <span
+              // biome-ignore lint/suspicious/noArrayIndexKey: sequence is fixed once parsed and never reorders
               key={i}
               className={`rounded px-2 py-1 text-sm font-mono ${
-                active
-                  ? `${pageColor(p)} ring-2 ring-primary-700`
-                  : 'bg-surface-200'
+                active ? `${pageColor(p)} ring-2 ring-primary-700` : 'bg-surface-200'
               }`}
             >
               {p}
@@ -147,15 +130,13 @@ function ManualBody({
 
         <div className="flex flex-col gap-2">
           <h3 className="text-sm font-medium">Status</h3>
-          {step === null ? (
+          {step == null ? (
             <p className="text-surface-500">— ainda não começou —</p>
           ) : (
             <div className="flex flex-col gap-2">
               <div>
                 <span className="text-sm text-surface-600">Página: </span>
-                <span
-                  className={`rounded px-2 py-1 font-bold ${pageColor(step.page)}`}
-                >
+                <span className={`rounded px-2 py-1 font-bold ${pageColor(step.page)}`}>
                   {step.page}
                 </span>
               </div>
@@ -163,9 +144,7 @@ function ManualBody({
               {step.victim !== undefined && (
                 <p className="text-sm text-surface-700">
                   Vítima removida:{' '}
-                  <span
-                    className={`rounded px-2 py-0.5 font-bold ${pageColor(step.victim)}`}
-                  >
+                  <span className={`rounded px-2 py-0.5 font-bold ${pageColor(step.victim)}`}>
                     {step.victim}
                   </span>
                 </p>
@@ -173,9 +152,7 @@ function ManualBody({
               {manualAlgorithm === 'fifo' && step.queueAfter !== undefined && (
                 <div>
                   <span className="text-sm text-surface-600">Fila FIFO: </span>
-                  <span className="font-mono">
-                    [{step.queueAfter.join(', ')}]
-                  </span>
+                  <span className="font-mono">[{step.queueAfter.join(', ')}]</span>
                 </div>
               )}
             </div>

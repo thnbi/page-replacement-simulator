@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { CLASSIC_SEQUENCE } from '../../test/fixtures';
 import { mulberry32 } from '../mulberry32';
 import { opt } from './opt';
 import { random } from './random';
-import { CLASSIC_SEQUENCE } from '../../test/fixtures';
 
 describe('random', () => {
   it('empty sequence', () => {

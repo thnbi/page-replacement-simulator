@@ -10,21 +10,9 @@ export function AutoResults() {
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <ResultCard
-        label={ALGORITHM_LABEL.fifo}
-        color={ALGORITHM_COLOR.fifo}
-        run={results.fifo}
-      />
-      <ResultCard
-        label={ALGORITHM_LABEL.lru}
-        color={ALGORITHM_COLOR.lru}
-        run={results.lru}
-      />
-      <ResultCard
-        label={ALGORITHM_LABEL.opt}
-        color={ALGORITHM_COLOR.opt}
-        run={results.opt}
-      />
+      <ResultCard label={ALGORITHM_LABEL.fifo} color={ALGORITHM_COLOR.fifo} run={results.fifo} />
+      <ResultCard label={ALGORITHM_LABEL.lru} color={ALGORITHM_COLOR.lru} run={results.lru} />
+      <ResultCard label={ALGORITHM_LABEL.opt} color={ALGORITHM_COLOR.opt} run={results.opt} />
       <RandomCard results={results} />
     </div>
   );
@@ -46,17 +34,12 @@ function ResultCard({ label, color, run }: ResultCardProps) {
       className="flex flex-col gap-3 rounded-lg border border-surface-300 bg-surface-50 p-4"
     >
       <div className="flex items-center gap-2">
-        <span
-          className="inline-block h-3 w-3 rounded-full"
-          style={{ backgroundColor: color }}
-        />
+        <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
         <h3 className="text-lg font-bold">{label}</h3>
       </div>
       <div className="text-4xl font-bold" style={{ color }}>
         {run.faults}
-        <span className="ml-1 text-sm font-normal text-surface-600">
-          faltas
-        </span>
+        <span className="ml-1 text-sm font-normal text-surface-600">faltas</span>
       </div>
       <table className="text-sm">
         <tbody>
@@ -91,21 +74,14 @@ function RandomCard({ results }: { results: AllResults }) {
       className="flex flex-col gap-3 rounded-lg border border-surface-300 bg-surface-50 p-4"
     >
       <div className="flex items-center gap-2">
-        <span
-          className="inline-block h-3 w-3 rounded-full"
-          style={{ backgroundColor: color }}
-        />
+        <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
         <h3 className="text-lg font-bold">{ALGORITHM_LABEL.random}</h3>
       </div>
       <div className="text-4xl font-bold" style={{ color }}>
         {results.randomMean}
-        <span className="ml-1 text-sm font-normal text-surface-600">
-          faltas (média)
-        </span>
+        <span className="ml-1 text-sm font-normal text-surface-600">faltas (média)</span>
       </div>
-      <p className="text-sm text-surface-700">
-        média de 30 execuções, σ ≈ {sigma}
-      </p>
+      <p className="text-sm text-surface-700">média de 30 execuções, σ ≈ {sigma}</p>
     </div>
   );
 }

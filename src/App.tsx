@@ -29,7 +29,7 @@ export function App() {
       <div className="flex flex-col gap-4">
         <InputPanel />
 
-        <nav className="flex gap-1 border-b border-surface-300" role="tablist">
+        <div className="flex gap-1 border-b border-surface-300" role="tablist">
           {TABS.map((t) => {
             const active = t.id === tab;
             return (
@@ -49,7 +49,7 @@ export function App() {
               </button>
             );
           })}
-        </nav>
+        </div>
 
         <section className="rounded-lg bg-surface-50 p-4">
           {tab === 'manual' && <ManualMode />}

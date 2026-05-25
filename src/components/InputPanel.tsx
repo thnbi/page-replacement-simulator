@@ -56,9 +56,7 @@ export function InputPanel() {
         </button>
       </div>
 
-      {parseError !== null && (
-        <p className="text-sm text-rose-600">{parseError}</p>
-      )}
+      {parseError !== null && <p className="text-sm text-rose-600">{parseError}</p>}
     </section>
   );
 }

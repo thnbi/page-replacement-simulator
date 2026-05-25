@@ -2,12 +2,12 @@ import { create } from 'zustand';
 import { ParseError, parseSequence } from '../domain/parseSequence';
 import { runAll } from '../domain/runAll';
 import {
+  type Algorithm,
+  type AllResults,
   DEFAULT_CHART_MAX,
   DEFAULT_FRAMES,
   MAX_CHART_FRAMES,
   MIN_FRAMES,
-  type Algorithm,
-  type AllResults,
   type PageNumber,
   type RunResult,
   type StepIndex,
@@ -66,7 +66,9 @@ export function initialState(): Omit<
  *   const run = selectManualRun(useSimulatorStore.getState());
  *   if (run) console.log(run.steps[0]);
  */
-export function selectManualRun(s: Pick<SimulatorState, 'results' | 'manualAlgorithm'>): RunResult | null {
+export function selectManualRun(
+  s: Pick<SimulatorState, 'results' | 'manualAlgorithm'>,
+): RunResult | null {
   if (!s.results) return null;
   switch (s.manualAlgorithm) {
     case 'fifo':

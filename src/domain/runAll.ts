@@ -3,12 +3,7 @@ import { lru } from './algorithms/lru';
 import { opt } from './algorithms/opt';
 import { random } from './algorithms/random';
 import { mulberry32 } from './mulberry32';
-import {
-  type AllResults,
-  type PageNumber,
-  RANDOM_SAMPLES,
-  RANDOM_SEED_BASE,
-} from './types';
+import { type AllResults, type PageNumber, RANDOM_SAMPLES, RANDOM_SEED_BASE } from './types';
 
 /**
  * Runs all four page-replacement algorithms on the given sequence and

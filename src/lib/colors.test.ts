@@ -7,12 +7,7 @@ describe('colors', () => {
   });
 
   it('different pages can yield different colors', () => {
-    const colors = new Set([
-      pageColor(0),
-      pageColor(1),
-      pageColor(2),
-      pageColor(3),
-    ]);
+    const colors = new Set([pageColor(0), pageColor(1), pageColor(2), pageColor(3)]);
     expect(colors.size).toBeGreaterThan(1);
   });
 

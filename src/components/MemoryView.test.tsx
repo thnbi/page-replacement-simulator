@@ -11,9 +11,7 @@ describe('MemoryView', () => {
   });
 
   it('marks the slot that changed (victimIndex)', () => {
-    const { container } = render(
-      <MemoryView frames={[5, 2, 3]} victimIndex={0} />,
-    );
+    const { container } = render(<MemoryView frames={[5, 2, 3]} victimIndex={0} />);
     const slots = container.querySelectorAll('[data-testid="memory-slot"]');
     expect(slots[0]).toHaveAttribute('data-victim', 'true');
     expect(slots[1]).toHaveAttribute('data-victim', 'false');
