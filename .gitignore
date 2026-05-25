@@ -9,3 +9,8 @@ coverage/
 
 # Spec PDF externa, mantida apenas localmente
 MiniprojetoSubstitucaoPagina*.pdf
+
+# Playwright artifacts and screenshots
+.playwright-mcp/
+page-replacement*.png
+page-replacement*.zip
