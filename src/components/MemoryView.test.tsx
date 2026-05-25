@@ -7,7 +7,7 @@ describe('MemoryView', () => {
     render(<MemoryView frames={[1, 2, null]} />);
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText(/vazio/i)).toBeInTheDocument();
   });
 
   it('marks the slot that changed (victimIndex)', () => {

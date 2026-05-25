@@ -34,13 +34,14 @@ describe('ManualMode', () => {
     expect(useSimulatorStore.getState().manualAlgorithm).toBe('lru');
   });
 
-  it('FIFO queue appears for FIFO and disappears for other algorithms', () => {
+  it('decision reasoning changes when algorithm changes', () => {
     useSimulatorStore.getState().run();
-    useSimulatorStore.getState().stepForward();
+    // advance to step 3 (first FIFO eviction with this sequence)
+    for (let i = 0; i < 4; i++) useSimulatorStore.getState().stepForward();
     render(<ManualMode />);
-    expect(screen.getByText(/Fila FIFO/i)).toBeInTheDocument();
+    expect(screen.getByText(/mantém uma fila/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('radio', { name: /LRU/i }));
-    expect(screen.queryByText(/Fila FIFO/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/menos recentemente usada/i)).toBeInTheDocument();
   });
 
   it('running fault count reflects the current step', () => {
@@ -48,6 +49,14 @@ describe('ManualMode', () => {
     render(<ManualMode />);
     // first reference (page 7) is a fault
     fireEvent.click(screen.getByRole('button', { name: /Avançar/i }));
-    expect(screen.getByText(/faltas até aqui: 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/1\s+faltas até aqui/i)).toBeInTheDocument();
+  });
+
+  it('play button toggles label between Tocar and Pausar', () => {
+    useSimulatorStore.getState().run();
+    render(<ManualMode />);
+    const play = screen.getByRole('button', { name: /Tocar/i });
+    fireEvent.click(play);
+    expect(screen.getByRole('button', { name: /Pausar/i })).toBeInTheDocument();
   });
 });
