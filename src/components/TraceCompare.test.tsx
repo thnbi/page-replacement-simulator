@@ -16,9 +16,21 @@ describe('TraceCompare', () => {
   it('renders one table per algorithm after run', () => {
     useSimulatorStore.getState().run();
     render(<TraceCompare />);
-    expect(screen.getByText(/FIFO · 10 faults/)).toBeInTheDocument();
-    expect(screen.getByText(/LRU · 9 faults/)).toBeInTheDocument();
-    expect(screen.getByText(/OPT · 7 faults/)).toBeInTheDocument();
-    expect(screen.getByText(/RANDOM/)).toBeInTheDocument();
+    const headings = screen.getAllByRole('heading', { level: 3 });
+    const titles = headings.map((h) => h.textContent);
+    expect(titles.some((t) => t?.startsWith('FIFO'))).toBe(true);
+    expect(titles.some((t) => t?.startsWith('LRU'))).toBe(true);
+    expect(titles.some((t) => t?.startsWith('OPT'))).toBe(true);
+    expect(titles.some((t) => t?.startsWith('RANDOM'))).toBe(true);
+    // FIFO has 10 faults (uniquely known among the four algorithms here).
+    expect(screen.getByText(/10 \/ 10 faults/)).toBeInTheDocument();
+  });
+
+  it('progressive reveal: with revealUpToStep=2 only shows partial counts', () => {
+    useSimulatorStore.getState().run();
+    render(<TraceCompare revealUpToStep={2} />);
+    // First 3 references (7,0,1) are all faults for every algorithm,
+    // so 3 / total faults are revealed.
+    expect(screen.getByText(/3 \/ 10 faults/)).toBeInTheDocument();
   });
 });

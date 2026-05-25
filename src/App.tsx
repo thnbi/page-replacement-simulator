@@ -3,7 +3,6 @@ import { AutoResults } from './components/AutoResults';
 import { ComparisonChart } from './components/ComparisonChart';
 import { InputPanel } from './components/InputPanel';
 import { ManualMode } from './components/ManualMode';
-import { TraceCompare } from './components/TraceCompare';
 import { useSimulatorStore } from './store/simulator';
 
 const TABS = [
@@ -11,23 +10,17 @@ const TABS = [
     id: 'manual',
     n: 1,
     label: 'Passo-a-passo',
-    hint: 'Acompanhe a memória a cada referência',
-  },
-  {
-    id: 'trace',
-    n: 2,
-    label: 'Tabela completa',
-    hint: 'Veja a alocação de todos os algoritmos lado a lado',
+    hint: 'Memória + tabelas se preenchendo a cada referência',
   },
   {
     id: 'auto',
-    n: 3,
+    n: 2,
     label: 'Resultados',
-    hint: 'Total de faltas por algoritmo',
+    hint: 'Total de page faults por algoritmo',
   },
   {
     id: 'chart',
-    n: 4,
+    n: 3,
     label: 'Curva de faltas',
     hint: 'Como o nº de quadros afeta as faltas',
   },
@@ -89,7 +82,6 @@ export function App() {
 
         <section className="rounded-lg bg-white p-6 shadow-sm">
           {tab === 'manual' && <ManualMode />}
-          {tab === 'trace' && <TraceCompare />}
           {tab === 'auto' && <AutoResults />}
           {tab === 'chart' && <ComparisonChart />}
         </section>

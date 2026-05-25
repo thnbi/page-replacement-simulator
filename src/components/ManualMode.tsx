@@ -4,6 +4,7 @@ import { ALGORITHM_LABEL, pageColor } from '../lib/colors';
 import { selectManualRun, useSimulatorStore } from '../store/simulator';
 import { DecisionPanel } from './DecisionPanel';
 import { MemoryView } from './MemoryView';
+import { TraceCompare } from './TraceCompare';
 
 const ALGORITHMS: Algorithm[] = ['fifo', 'lru', 'opt', 'random'];
 const PLAY_INTERVAL_MS = 900;
@@ -151,6 +152,21 @@ function ManualBody({
           )}
         </section>
       </div>
+
+      <section aria-labelledby="trace-heading" className="flex flex-col gap-3">
+        <div>
+          <h3
+            id="trace-heading"
+            className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+          >
+            Tabelas de alocação
+          </h3>
+          <p className="text-xs text-slate-500">
+            As 4 tabelas vão se preenchendo a cada passo. A coluna em destaque é o passo atual.
+          </p>
+        </div>
+        <TraceCompare revealUpToStep={stepIndex} />
+      </section>
     </>
   );
 }

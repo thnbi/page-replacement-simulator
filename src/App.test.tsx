@@ -13,10 +13,9 @@ describe('App', () => {
     expect(screen.getByText(/Simulador de Substituição/i)).toBeInTheDocument();
   });
 
-  it('shows the four tabs', () => {
+  it('shows the three tabs', () => {
     render(<App />);
     expect(screen.getByRole('tab', { name: /Passo-a-passo/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Tabela completa/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Resultados/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Curva de faltas/i })).toBeInTheDocument();
   });
