@@ -25,10 +25,11 @@ type Point = {
 export function ComparisonChart() {
   const sequence = useSimulatorStore((s) => s.sequence);
   const results = useSimulatorStore((s) => s.results);
+  const stepIndex = useSimulatorStore((s) => s.stepIndex);
   const maxChartFrames = useSimulatorStore((s) => s.maxChartFrames);
   const setMaxChartFrames = useSimulatorStore((s) => s.setMaxChartFrames);
 
-  const points: Point[] = useMemo(() => {
+  const allPoints: Point[] = useMemo(() => {
     if (results === null || sequence.length === 0) return [];
     const ps: Point[] = [];
     for (let k = 1; k <= maxChartFrames; k++) {
@@ -43,6 +44,14 @@ export function ComparisonChart() {
     }
     return ps;
   }, [results, sequence, maxChartFrames]);
+
+  // The chart reveals one X value (frame count) per step advanced in the
+  // Passo-a-passo, same idea as the trace tables filling column by column.
+  const revealedCount = Math.max(0, Math.min(stepIndex + 1, maxChartFrames));
+  const visiblePoints = allPoints.slice(0, revealedCount);
+  // Keep the axes fixed at the full chart extent so the visual scale doesn't
+  // shrink as the curve fills in.
+  const yMax = allPoints.reduce((acc, p) => Math.max(acc, p.FIFO, p.LRU, p.OPT, p.RANDOM), 0);
 
   if (results === null) {
     return (
@@ -67,15 +76,28 @@ export function ComparisonChart() {
         <span className="font-mono text-sm">{maxChartFrames}</span>
       </label>
 
+      <p className="text-xs text-slate-500">
+        A curva vai se preenchendo a cada passo do Passo-a-passo. Atualmente:{' '}
+        <strong>
+          {revealedCount} / {allPoints.length}
+        </strong>{' '}
+        valores de quadros revelados.
+      </p>
+
       <div className="h-96 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={points} margin={{ top: 20, right: 30, bottom: 20, left: 0 }}>
+          <LineChart data={visiblePoints} margin={{ top: 20, right: 30, bottom: 20, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="frames"
+              type="number"
+              domain={[1, maxChartFrames]}
+              allowDecimals={false}
+              ticks={Array.from({ length: maxChartFrames }, (_, i) => i + 1)}
               label={{ value: 'Nº de quadros', position: 'insideBottom', offset: -5 }}
             />
             <YAxis
+              domain={[0, yMax || 1]}
               label={{ value: 'Page faults', angle: -90, position: 'insideLeft' }}
               allowDecimals={false}
             />
